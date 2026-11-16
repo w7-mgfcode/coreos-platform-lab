@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Architecture, requirements and acceptance checks
+    url: https://github.com/w7-mgfcode/coreos-platform-lab/blob/main/docs/architecture.md
+    about: The source of truth for scope and acceptance (in Hungarian). Read it before opening an issue.

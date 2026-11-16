@@ -1,0 +1,19 @@
+# Updates the SHA-pinned GitHub Actions only. Container images and other ecosystems are not
+# updated here; image pins change through an ordinary chore or fix issue (.claude/rules/versioning.md).
+# A Dependabot pull request has no issue number: it gets an issue and a title in the commit grammar,
+# type(scope): description (#issue), before a merge is proposed.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 2
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    labels:
+      - "area:ci"
+    commit-message:
+      prefix: "chore(ci)"
