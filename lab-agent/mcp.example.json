@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "pve": {
+      "command": "sh",
+      "args": ["-c", "exec \"$CLAUDE_PROJECT_DIR/lab-agent/bin/mcp-launch\""]
+    }
+  }
+}

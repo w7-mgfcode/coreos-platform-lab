@@ -1,0 +1,28 @@
+# PROPOSED PATCH. NOT APPLIED. For the owner. Refreshed 2026-11-16 (mission L1B, task LA-GUARD).
+# Target (review-only): .claude/agents/pve-lab.md
+# Target baseline sha256: 17a13b713428f7e4c8153a1b3e7fd0125644fdf15c1e7712fd35759f39a00ca0
+# Result sha256 (after this patch): c3bc42957360adf044abf992ec8620bf4b80bd91b574d4adabae107748431197 = lab-agent/proposed/agents/pve-lab.md
+# Purpose: make the workstation's source address towards the Proxmox host explicit (owner
+# prerequisite for L2), and tell the agent to write the words after the alias literally,
+# which the candidate guard (S-1g) enforces. Uses plan variables only; no lab value.
+# See lab-agent/docs/l2-runbook.md. Independent of the guard patches.
+# Check, then apply, from the repository root:
+#   git apply --check lab-agent/docs/proposed-patches/l2-source-address-pve-lab-agent.patch
+--- a/.claude/agents/pve-lab.md
++++ b/.claude/agents/pve-lab.md
+@@ -24,7 +24,14 @@
+   `host-run`, never touch the root key, never `ssh-add`, never ssh anywhere except
+   `pve-snip`. The guard hook denies these, but the rule is yours regardless of the hook.
+ - **Snippet writer.** `ssh pve-snip put <slug> < file.ign` stores `corelab-<slug>.ign`;
+-  `ssh pve-snip rm <slug>` and `ssh pve-snip list` are the only other commands.
++  `ssh pve-snip rm <slug>` and `ssh pve-snip list` are the only other commands. `pve-snip` is an
++  alias the owner defines in their own SSH configuration; it pins the host, the key, the host key
++  and the source address (`lab-agent/docs/l2-runbook.md`). Call it only as `ssh pve-snip …` or
++  `ssh -T pve-snip …`; never add any other option (`-F`, `-b`, `-B`, `-J`, `-o` and the rest, also
++  when written without a space or after the alias), a user or an address. Write the words after
++  the alias literally: no variable, glob, brace list or command substitution (only the file
++  after `<` may be a variable). If it fails
++  (refused, timeout, unknown host), stop and report; never try another address, option or route.
+ 
+ ## Routine work (do it without asking)
+ 

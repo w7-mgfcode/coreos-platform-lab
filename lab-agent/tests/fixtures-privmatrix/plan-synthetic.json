@@ -1,0 +1,506 @@
+{
+ "plan_ref": "synthetic test plan (not the lab plan)",
+ "roles": {
+  "_source": "synthetic roles for the unit tests",
+  "AUD": [
+   "VM.Audit",
+   "Datastore.Audit",
+   "Sys.Audit"
+  ],
+  "ADM": [
+   "VM.PowerMgmt",
+   "VM.Config.Memory",
+   "VM.Allocate",
+   "VM.Clone",
+   "VM.Backup"
+  ],
+  "STO": [
+   "Datastore.AllocateSpace",
+   "Datastore.Audit"
+  ]
+ },
+ "profiles": {
+  "token": [
+   {
+    "path": "/",
+    "role": "AUD"
+   },
+   {
+    "path": "/pool/lab",
+    "role": "ADM"
+   },
+   {
+    "path": "/storage/S1",
+    "role": "STO"
+   }
+  ],
+  "weak": [
+   {
+    "path": "/",
+    "role": "AUD"
+   }
+  ]
+ },
+ "pools": {
+  "lab": [
+   "VM1"
+  ]
+ },
+ "contexts": {
+  "in-scope": {
+   "bind": {
+    "vmid": "VM1",
+    "newid": "NEWID",
+    "pool": "lab",
+    "storage": "S1"
+   }
+  },
+  "foreign": {
+   "bind": {
+    "vmid": "FOREIGN",
+    "newid": "FOREIGNNEW",
+    "pool": "otherpool",
+    "storage": "S2"
+   }
+  }
+ },
+ "operations": [
+  {
+   "id": "S-OPEN",
+   "name": "S-OPEN",
+   "method": "GET",
+   "path": "/synthetic/open",
+   "bind": {},
+   "expect": {
+    "token": "allow",
+    "weak": "allow"
+   }
+  },
+  {
+   "id": "S-WORLD",
+   "name": "S-WORLD",
+   "method": "GET",
+   "path": "/synthetic/world",
+   "bind": {},
+   "expect": {
+    "token": "allow",
+    "weak": "allow"
+   }
+  },
+  {
+   "id": "S-ALL",
+   "name": "S-ALL",
+   "method": "POST",
+   "path": "/synthetic/{vmid}/perm",
+   "bind": {
+    "vmid": "VM1"
+   },
+   "expect": {
+    "token": "allow",
+    "weak": "deny"
+   },
+   "any_of": [
+    [
+     {
+      "priv": "VM.PowerMgmt",
+      "path": "/vms/VM1"
+     },
+     {
+      "priv": "VM.Config.Memory",
+      "path": "/vms/VM1"
+     }
+    ]
+   ]
+  },
+  {
+   "id": "S-ALL-FOREIGN",
+   "name": "S-ALL-FOREIGN",
+   "method": "POST",
+   "path": "/synthetic/{vmid}/perm",
+   "bind": {
+    "vmid": "FOREIGN"
+   },
+   "expect": {
+    "token": "deny",
+    "weak": "deny"
+   },
+   "any_of": [
+    [
+     {
+      "priv": "VM.PowerMgmt",
+      "path": "/vms/FOREIGN"
+     }
+    ]
+   ]
+  },
+  {
+   "id": "S-ANY",
+   "name": "S-ANY",
+   "method": "POST",
+   "path": "/synthetic/{vmid}/any",
+   "bind": {
+    "vmid": "VM1"
+   },
+   "expect": {
+    "token": "allow",
+    "weak": "deny"
+   },
+   "any_of": [
+    [
+     {
+      "priv": "VM.Config.Memory",
+      "path": "/vms/VM1"
+     }
+    ]
+   ]
+  },
+  {
+   "id": "S-AND",
+   "name": "S-AND",
+   "method": "POST",
+   "path": "/synthetic/{vmid}/and",
+   "bind": {
+    "vmid": "VM1",
+    "storage": "S1"
+   },
+   "expect": {
+    "token": "allow",
+    "weak": "deny"
+   },
+   "any_of": [
+    [
+     {
+      "priv": "VM.PowerMgmt",
+      "path": "/vms/VM1"
+     },
+     {
+      "priv": "Datastore.Audit",
+      "path": "/storage/S1"
+     }
+    ]
+   ]
+  },
+  {
+   "id": "S-OR-POOL",
+   "name": "S-OR-POOL",
+   "method": "POST",
+   "path": "/synthetic/{vmid}/or",
+   "bind": {
+    "vmid": "NEWID",
+    "pool": "lab"
+   },
+   "expect": {
+    "token": "allow",
+    "weak": "deny"
+   },
+   "any_of": [
+    [
+     {
+      "priv": "VM.Allocate",
+      "path": "/pool/lab"
+     }
+    ]
+   ],
+   "params": [
+    "pool"
+   ]
+  },
+  {
+   "id": "S-OR-NOPOOL",
+   "name": "S-OR-NOPOOL",
+   "method": "POST",
+   "path": "/synthetic/{vmid}/or",
+   "bind": {
+    "vmid": "NEWID",
+    "pool": "lab"
+   },
+   "expect": {
+    "token": "deny",
+    "weak": "deny"
+   },
+   "any_of": [
+    [
+     {
+      "priv": "VM.Allocate",
+      "path": "/vms/NEWID"
+     }
+    ]
+   ]
+  },
+  {
+   "id": "S-PM-IN",
+   "name": "S-PM-IN",
+   "method": "PUT",
+   "path": "/synthetic/permmodify",
+   "bind": {
+    "path": "/vms/VM1"
+   },
+   "expect": {
+    "token": "allow",
+    "weak": "deny"
+   },
+   "any_of": [
+    [
+     {
+      "priv": "VM.Allocate",
+      "path": "/vms/VM1"
+     }
+    ]
+   ]
+  },
+  {
+   "id": "S-PM-OUT",
+   "name": "S-PM-OUT",
+   "method": "PUT",
+   "path": "/synthetic/permmodify",
+   "bind": {
+    "path": "/vms/FOREIGN"
+   },
+   "expect": {
+    "token": "deny",
+    "weak": "deny"
+   },
+   "any_of": [
+    [
+     {
+      "priv": "VM.Allocate",
+      "path": "/vms/FOREIGN"
+     }
+    ]
+   ]
+  },
+  {
+   "id": "S-SELF",
+   "name": "S-SELF",
+   "method": "POST",
+   "path": "/synthetic/useridself",
+   "bind": {},
+   "expect": {
+    "token": "conditional",
+    "weak": "conditional"
+   }
+  },
+  {
+   "id": "S-UPRIV",
+   "name": "S-UPRIV",
+   "method": "POST",
+   "path": "/synthetic/useridpriv",
+   "bind": {},
+   "expect": {
+    "token": "deny",
+    "weak": "deny"
+   }
+  },
+  {
+   "id": "S-UGROUP",
+   "name": "S-UGROUP",
+   "method": "POST",
+   "path": "/synthetic/useridgroup",
+   "bind": {},
+   "expect": {
+    "token": "deny",
+    "weak": "deny"
+   }
+  },
+  {
+   "id": "S-NOPERM",
+   "name": "S-NOPERM",
+   "method": "GET",
+   "path": "/synthetic/nopermkey",
+   "bind": {},
+   "expect": {
+    "token": "allow",
+    "weak": "allow"
+   }
+  },
+  {
+   "id": "S-EMPTYRULE",
+   "name": "S-EMPTYRULE",
+   "method": "GET",
+   "path": "/synthetic/emptyrule",
+   "bind": {},
+   "expect": {
+    "token": "allow",
+    "weak": "allow"
+   }
+  },
+  {
+   "id": "S-WEIRDUSER",
+   "name": "S-WEIRDUSER",
+   "method": "GET",
+   "path": "/synthetic/weirduser",
+   "bind": {},
+   "expect": {
+    "token": "allow",
+    "weak": "allow"
+   }
+  },
+  {
+   "id": "S-TEXT",
+   "name": "S-TEXT",
+   "method": "POST",
+   "path": "/synthetic/text",
+   "bind": {},
+   "expect": {
+    "token": "allow",
+    "weak": "deny"
+   },
+   "any_of": [
+    [
+     {
+      "priv": "VM.Backup",
+      "path": "/vms/VM1"
+     }
+    ]
+   ]
+  },
+  {
+   "id": "S-TEXTEXTRA",
+   "name": "S-TEXTEXTRA",
+   "method": "POST",
+   "path": "/synthetic/{vmid}/textextra",
+   "bind": {
+    "vmid": "VM1"
+   },
+   "expect": {
+    "token": "allow",
+    "weak": "deny"
+   },
+   "any_of": [
+    [
+     {
+      "priv": "VM.Clone",
+      "path": "/vms/VM1"
+     },
+     {
+      "priv": "Datastore.AllocateSpace",
+      "path": "/storage/S1"
+     }
+    ]
+   ]
+  },
+  {
+   "id": "S-DESCSAME",
+   "name": "S-DESCSAME",
+   "method": "POST",
+   "path": "/synthetic/{vmid}/descsame",
+   "bind": {
+    "vmid": "VM1"
+   },
+   "expect": {
+    "token": "allow",
+    "weak": "deny"
+   },
+   "any_of": [
+    [
+     {
+      "priv": "VM.PowerMgmt",
+      "path": "/vms/VM1"
+     }
+    ]
+   ]
+  },
+  {
+   "id": "S-UNKNOWNFORM",
+   "name": "S-UNKNOWNFORM",
+   "method": "POST",
+   "path": "/synthetic/unknownform",
+   "bind": {},
+   "expect": {
+    "token": "allow",
+    "weak": "allow"
+   }
+  },
+  {
+   "id": "S-BADPERM",
+   "name": "S-BADPERM",
+   "method": "POST",
+   "path": "/synthetic/badperm",
+   "bind": {},
+   "expect": {
+    "token": "allow",
+    "weak": "allow"
+   }
+  },
+  {
+   "id": "S-EMPTYAND",
+   "name": "S-EMPTYAND",
+   "method": "POST",
+   "path": "/synthetic/emptyand",
+   "bind": {},
+   "expect": {
+    "token": "allow",
+    "weak": "allow"
+   }
+  },
+  {
+   "id": "S-BADOPTION",
+   "name": "S-BADOPTION",
+   "method": "POST",
+   "path": "/synthetic/badoption",
+   "bind": {},
+   "expect": {
+    "token": "allow",
+    "weak": "allow"
+   }
+  },
+  {
+   "id": "S-ROOT",
+   "name": "S-ROOT",
+   "method": "POST",
+   "path": "/synthetic/rootonly",
+   "bind": {},
+   "expect": {
+    "token": "deny",
+    "weak": "deny"
+   }
+  },
+  {
+   "id": "S-NOTOKEN",
+   "name": "S-NOTOKEN",
+   "method": "POST",
+   "path": "/synthetic/notoken",
+   "bind": {},
+   "expect": {
+    "token": "deny",
+    "weak": "deny"
+   }
+  },
+  {
+   "id": "S-UNBOUND",
+   "name": "S-UNBOUND",
+   "method": "GET",
+   "path": "/synthetic/{mystery}/unbound",
+   "bind": {},
+   "expect": {
+    "token": "allow",
+    "weak": "allow"
+   }
+  },
+  {
+   "id": "S-NOMETHOD",
+   "name": "S-NOMETHOD",
+   "method": "DELETE",
+   "path": "/synthetic/open",
+   "bind": {},
+   "expect": {
+    "token": "deny",
+    "weak": "deny"
+   }
+  },
+  {
+   "id": "S-LIVE",
+   "name": "S-LIVE",
+   "method": "POST",
+   "path": "/synthetic/{vmid}/perm",
+   "bind": {
+    "vmid": "VM1"
+   },
+   "expect": {
+    "token": "live-only",
+    "weak": "deny"
+   }
+  }
+ ],
+ "sweep_profile": "token"
+}

@@ -27,6 +27,12 @@ Read this before acting. It describes how to find the state, because the state c
   platform configuration and any contact with the lab. The implementation gate is open only when
   `docs/.prepare/decision-log.md` § 5 carries a dated approval line; the publication gate only
   when the owner says so. An issue, an agent report or a review opens neither.
+- **Lab tooling is included, not authorized** (decision D-57). `lab-agent/` holds supporting
+  development tooling for the Proxmox lab. It is verified offline by its own gate; one read-only
+  API connectivity check passed under two narrow owner approvals that are used up; nothing else
+  in it was ever run against a host. It is not platform configuration, its gate is not the
+  platform's static gate, and its results are evidence for no requirement. State and limits:
+  `lab-agent/README.md`.
 - **Proposals are not decisions.** Everything under `docs/.prepare/` is a proposal unless the
   decision log marks it `decided`. Read the status before relying on a line.
 - **A local `HANDOFF.md` may exist.** It is untracked and private. The session that leads the
@@ -47,7 +53,8 @@ All of it is planned; only the documentation and the agent tooling exist today.
 - **Consumed, not operated here**: the Proxmox host, an authenticated external SMTP relay, an
   external Checkmk
 - **In the repository today**: Markdown documents, Python diagram generators under `diagrams/`,
-  agent tooling under `.claude/` and `.agents/`
+  agent tooling under `.claude/` and `.agents/`, and the lab tooling under `lab-agent/` (Python
+  standard library, shell and Perl, with offline tests)
 - **CI/CD**: none yet. Planned: static checks only. CI never reaches the lab. Releases are
   tagged by hand
 
@@ -63,6 +70,10 @@ No runnable build or test command exists for the platform. The planned gate comm
 `.claude/rules/test-requirements.md` ("Gates"); the files they check do not exist and the
 commands have never been run. Once the scaffold lands, `scripts/validate.sh` is the gate and
 this section is updated in the same change.
+
+The lab tooling has its own offline gate, `lab-agent/tests/run.sh`. It checks only that tooling,
+needs Docker with the pinned images already present (it pulls nothing), and contacts no host. It
+is not one of the platform gates, and a pass says nothing about the platform.
 
 ## Validation Gates
 
@@ -113,16 +124,21 @@ this section is updated in the same change.
   tracked file, issue, PR or board item. Lab-private values come from variables.
 - Do not contact the lab VM or the Proxmox host, and do not read credential files, unless the
   implementation gate is open and the task says so.
-- **Lab-access tooling is excluded from the initial publication** (decision D-49) and is not
-  in this repository. A working copy may still hold it as local, untracked files: scripts, an
-  agent definition, an MCP server entry, proposed governance changes. It is not authorized. Do
-  not run, start, apply or repair any of it, and do not contact the lab with it, until the
-  owner has recorded the authorization.
+- **Lab-access tooling is in `lab-agent/`** (decision D-57; it was excluded from the initial
+  publication, D-49). **Inclusion is not authorization.** Do not run it against the lab, do not
+  start its MCP server or its agent, do not apply or install its proposed patches and candidate
+  files, and do not contact the lab with it, until the owner has recorded an authorization for
+  that use. Its offline tests may be run. Cleanup execution is disabled in its code and one host
+  action is blocked: do not re-enable either. A working copy may also hold parts of that
+  workstream as local, untracked files: an active guard hook, an agent definition, an MCP server
+  entry, a design plan, proposed governance changes. They are not authorized either; do not
+  run, start, apply or repair any of them.
 - **A guard hook may run on shell commands in a local Claude Code session.** It can deny
   commands whose text names an owner-only tool or key, and it blocks the call if the hook
   itself fails. If shell commands start failing with a hook block, stop and report; do not
   work around it. If a local MCP server fails at startup, report it; do not install anything
-  to repair it.
+  to repair it. The hook is not in the repository: a clone or a git worktree has none, so do no
+  lab-related work from one.
 
 **Stop and ask the owner before:**
 
@@ -159,4 +175,6 @@ Load only what the current task touches.
 - Policy: `.claude/rules/` (vision and scope lock, security patterns, test requirements, commit
   format, branch naming, versioning, output formatting, and Herdr orchestration, which also sets
   the worker models and how independent review is done)
+- Lab tooling, its state, limits and owner procedure: `lab-agent/README.md`,
+  `lab-agent/docs/l2-runbook.md`
 - Rejected alternative, background only: `docs/alternatives/swarm.md`

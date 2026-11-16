@@ -1,0 +1,10 @@
+#!/usr/bin/env python3
+"""Routine lab tooling (Mode A). See lab-agent/README.md."""
+import os
+import sys
+
+os.umask(0o077)  # every file this command creates starts private; nothing relies on the caller's umask
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), ".."))
+from lab_agent.cli import main  # noqa: E402
+
+sys.exit(main())

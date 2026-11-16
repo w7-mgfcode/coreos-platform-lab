@@ -20,6 +20,7 @@ each session small.
 - First, if present and you lead the session: the local `HANDOFF.md` (private, untracked)
 - The governing documents listed at the end of the shared brief
 - Herdr worker packets and report shapes: `.claude/references/herdr-orchestration.md`
+- Lab tooling (included, not authorized for lab contact): `lab-agent/README.md`
 - Agent roles: `.claude/agents/github-steward.md` (everything GitHub, in two stages),
   `.claude/agents/repo-visibility-manager.md` (read-only audit of the public surface)
 

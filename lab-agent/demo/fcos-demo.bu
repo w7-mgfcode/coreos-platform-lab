@@ -1,0 +1,21 @@
+# Demo Butane for the lab-agent FCOS demonstration (L5). Not the platform VM's config.
+# Render with demo/render.sh; the SSH public key is injected at render time so no
+# machine-specific key is committed.
+variant: fcos
+version: 1.6.0
+passwd:
+  users:
+    - name: core
+      ssh_authorized_keys:
+        - "@DEMO_SSH_PUBKEY@"
+storage:
+  files:
+    - path: /etc/corelab-demo-marker
+      mode: 0644
+      contents:
+        inline: |
+          corelab lab-agent demo: provisioned by Ignition
+    - path: /etc/hostname
+      mode: 0644
+      contents:
+        inline: corelab-demo
