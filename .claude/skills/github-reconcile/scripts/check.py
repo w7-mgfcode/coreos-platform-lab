@@ -3,7 +3,7 @@
 except the report. Run as:  python3 -I check.py EXPORT_DIR [--policy FILE] [--previous REPORT]
                                               [--out REPORT]
                             python3 -I check.py fingerprint ISSUE_JSON_FILE
-Exit: 0 nothing to act on (WAIVER rows are listed, never silent); 1 findings (FAIL/MISSING/OWNER); 2 usage or invalid policy; 3 export incomplete (no conclusion).
+Exit: 0 nothing to act on (WAIVER rows are listed, never silent); 1 findings (FAIL/MISSING/OWNER); 2 usage, invalid policy or unsupported input (no conclusion); 3 export incomplete (no conclusion).
 Informational notes (e.g. what the API does not expose) are printed and kept in the report; they never change the exit.
 """
 import hashlib, json, os, re, sys
@@ -13,12 +13,19 @@ BOX = re.compile(r"^\s*[-*]\s+\[( |x|X)\]\s+(.*)$")
 REF = re.compile(r"#(\d+)")
 
 
+class Unreadable(Exception):
+    """An export file that exists but cannot be read or parsed: the export is incomplete (exit 3)."""
+
+
 def load(d, name, default=None):
     p = os.path.join(d, name)
     if not os.path.exists(p):
         return default
-    with open(p, encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(p, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError) as e:
+        raise Unreadable("%s (%s)" % (name, e.__class__.__name__))
 
 
 def norm(o):
@@ -66,8 +73,55 @@ class Report:
 
 def policy_problems(pol):
     """An invalid policy is rejected (exit 2), never silently ignored."""
-    return ["`waivers` is not supported: a waiver exists only as an exception tag on a criterion, "
-            "validated against `exception_scopes`"] if "waivers" in pol else []
+    if not isinstance(pol, dict):
+        return ["the policy must be a JSON object"]
+    out = ["`waivers` is not supported: a waiver exists only as an exception tag on a criterion, "
+           "validated against `exception_scopes`"] if "waivers" in pol else []
+
+    def objs(v):
+        return isinstance(v, list) and all(isinstance(x, dict) for x in v)
+
+    def obj_of_objs(v):
+        return isinstance(v, dict) and all(isinstance(x, dict) for x in v.values())
+
+    def strs(v):
+        return isinstance(v, list) and all(isinstance(x, str) for x in v)
+
+    shapes = dict(  # the shape each check reads; a wrong shape is an invalid policy, never a traceback
+        hierarchy=(strs, "a list of strings"), no_milestone_types=(strs, "a list of strings"),
+        required_roles=(strs, "a list of strings"), builtin_fields=(strs, "a list of strings"),
+        board_roles=(lambda v: obj_of_objs(v) and all(strs(x.get("options")) for x in v.values()),
+                     'an object: role -> {"options": [option names]}'),
+        status_map=(lambda v: isinstance(v, dict) and all(isinstance(x, str) for x in v.values()), "an object: meaning -> option name"),
+        plan_edges=(lambda v: isinstance(v, list) and all(isinstance(e, list) and len(e) == 2 and all(type(x) is int for x in e) for e in v),
+                    "a list of [blocked, blocker] issue-number pairs"),
+        milestone_exits=(lambda v: obj_of_objs(v) and all(
+            isinstance(x.get("require_closed", []), list) and all(type(n) is int for n in x.get("require_closed", []))
+            and strs(x.get("require_labels_closed", [])) for x in v.values()),
+            "an object: milestone title -> {require_closed: [issue numbers], require_labels_closed: [label names]}"),
+        exception_scopes=(obj_of_objs, "an object: decision ID -> {prs, issues, waives}"),
+        field_aliases=(lambda v: objs(v) and all(isinstance(x.get("old"), str) and isinstance(x.get("role"), str) for x in v),
+                       'a list of {"old": name, "role": role}'),
+        stale_text=(lambda v: objs(v) and all(isinstance(x.get("regex"), str) and isinstance(x.get("new"), str) for x in v),
+                    'a list of {"regex", "new", "why"}'),
+        owner_pending=(objs, "a list of {object, match, decision}"))
+    for key, (ok, want) in shapes.items():
+        if key in pol and not ok(pol[key]):
+            out.append("`%s` must be %s" % (key, want))
+    for key in ("proof_regex", "exception_regex"):
+        if key in pol:
+            try:
+                rx = re.compile(pol[key])
+                if key == "exception_regex" and rx.groups < 1:
+                    out.append("`exception_regex` must capture the decision ID in its first group")
+            except (re.error, TypeError):
+                out.append("`%s` must be a valid regular expression" % key)
+    for st in pol.get("stale_text", []) if objs(pol.get("stale_text", [])) else []:
+        try:
+            re.compile(st.get("regex") or "").sub(st.get("new") or "", "")  # also parses the replacement template
+        except (re.error, TypeError, IndexError):
+            out.append("`stale_text` holds an invalid regular expression or replacement")
+    return out
 
 
 def completeness(meta, ex):
@@ -258,28 +312,33 @@ def run(d, pol, previous):
               "name the Status options and their meanings in the policy; no status conclusion was drawn")
     else:
         S = status_f["name"]
+        have = {k for k in ("done", "blocked", "ready", "in_progress", "in_review") if smap.get(k)}
+        for k in ("done", "blocked", "ready", "in_progress", "in_review"):
+            if k not in have:
+                R.add("C4-status", "MISSING", "status_map:" + k, "meaning %r not given" % k, "policy.status_map",
+                      "name the Status option for it; the clauses that need it were skipped")
         for n, i in sorted(issues.items()):
             st = by_issue.get(n, {}).get(S)
             if st is None:
                 continue  # absence on the board is C7's finding
             open_blockers = [b for b in blocked_by.get(n, ()) if b in issues and issues[b]["state"] == "open"]
             bad = []
-            if i["state"] == "closed" and st != smap.get("done"):
+            if "done" in have and i["state"] == "closed" and st != smap["done"]:
                 bad.append("closed but Status=%s" % st)
-            if i["state"] == "open" and st == smap.get("done"):
+            if "done" in have and i["state"] == "open" and st == smap["done"]:
                 bad.append("open but Status=Done")
-            if st == smap.get("blocked") and not open_blockers and blabel not in lab(i):
+            if "blocked" in have and st == smap["blocked"] and not open_blockers and blabel not in lab(i):
                 bad.append("Status=blocked with no open blocker and no blocked label")
             if i["state"] == "open" and open_blockers and st in (smap.get("ready"), smap.get("in_progress")):
                 bad.append("Status=%s with open blockers %s" % (st, [name(b) for b in open_blockers]))
-            if (blabel in lab(i)) != (st == smap.get("blocked")):
+            if "blocked" in have and (blabel in lab(i)) != (st == smap["blocked"]):
                 bad.append("blocked label and Status disagree")
-            if n in open_pr_for and st != smap.get("in_review"):
+            if "in_review" in have and n in open_pr_for and st != smap["in_review"]:
                 bad.append("open PR %s but Status=%s" % (open_pr_for[n], st))
             if bad:
                 R.add("C4-status", "FAIL", name(n), "; ".join(bad), "issues/pulls/blocked_by/project exports",
                       "set the Status the state implies, or record why not")
-            else:
+            elif len(have) == 5:  # with a meaning missing the check ran only in part: FAIL rows stand, but no PASS is claimed
                 R.ok("C4-status", name(n))
 
     # C5 closure criteria (object-local). A waived criterion stays UNTICKED with its text and an exception tag
@@ -322,6 +381,7 @@ def run(d, pol, previous):
         if i["state"] == "closed":
             if i.get("state_reason") == "not_planned":
                 R.add("C5-closure", "OWNER", name(n), "closed as not planned", "state_reason", "confirm the owner meant to drop it")
+                pending += 1  # an OWNER row: this object is not a PASS for this check
             kids = [c for c in children.get(n, ()) if c in issues and issues[c]["state"] == "open"]
             if kids:
                 bad.append("closed parent with open children %s" % [name(c) for c in kids])
@@ -360,7 +420,8 @@ def run(d, pol, previous):
         t = m["title"]
         mine = [i for i in issues.values() if (i.get("milestone") or {}).get("title") == t]
         open_n = [i["number"] for i in mine if i["state"] == "open"]
-        if m["state"] == "closed" and open_n:
+        failed = m["state"] == "closed" and bool(open_n)
+        if failed:
             R.add("C6-milestone", "FAIL", "milestone:" + t, "closed with open issues %s" % [name(x) for x in open_n], "milestones/issues", "reopen or move")
         ex = exits.get(t) or {}
         reqc, reql = ex.get("require_closed", []), ex.get("require_labels_closed", [])
@@ -378,7 +439,8 @@ def run(d, pol, previous):
         if need and m["state"] == "closed":
             R.add("C6-milestone", "FAIL", "milestone:" + t, "closed but exit not met: %s" % [name(x) for x in sorted(set(need))], "policy.milestone_exits", "reopen the milestone")
         elif need or open_n or not mine:
-            R.ok("C6-milestone", "milestone:" + t)  # not yet met / members still open / no members: nothing to propose
+            if not failed:
+                R.ok("C6-milestone", "milestone:" + t)  # not yet met / members still open / no members: nothing to propose
         elif m["state"] == "open":
             R.add("C6-milestone", "FAIL", "milestone:" + t, "every member closed and exit met, but milestone open", "milestones", "close the milestone",
                   change=dict(op="close_milestone", number=m["number"]))
@@ -395,6 +457,10 @@ def run(d, pol, previous):
     for role, spec in roles.items():
         if not resolve_role(P["fields"]["nodes"], spec):
             R.add("C7-board", "FAIL", "role:" + role, "no single-select field has exactly options %s" % spec["options"], "project.fields", "fix field or policy")
+    for r in pol.get("required_roles", []):
+        if r not in roles:
+            R.add("C7-board", "MISSING", "role:" + r, "required role has no board_roles definition", "policy.required_roles/board_roles",
+                  "define the role's options or remove it; the required-field check did not cover it")
     req = [resolve_role(P["fields"]["nodes"], roles[r]) for r in pol.get("required_roles", []) if r in roles]
     for n in sorted(issues):
         if n not in by_issue:
@@ -442,26 +508,56 @@ def run(d, pol, previous):
 
 
 def main(argv):
-    if len(argv) >= 3 and argv[1] == "fingerprint":
-        with open(argv[2], encoding="utf-8") as f:
-            print(fingerprint(json.load(f)))
+    def read(path, what):  # an unreadable input file is a usage error (exit 2), never "findings"
+        try:
+            with open(path, encoding="utf-8") as f:
+                return json.load(f), None
+        except (OSError, ValueError) as e:
+            return None, "cannot read %s %s (%s)" % (what, path, e.__class__.__name__)
+
+    if len(argv) >= 2 and argv[1] == "fingerprint":
+        if len(argv) != 3:
+            print(__doc__)
+            return 2
+        obj, err = read(argv[2], "file")
+        if err:
+            print("usage:", err)
+            return 2
+        print(fingerprint(obj))
         return 0
-    if len(argv) < 2:
+    if len(argv) < 2 or argv[1].startswith("--"):
         print(__doc__)
         return 2
-    d, opts = argv[1], dict(zip(argv[2::2], argv[3::2]))
+    d, rest, opts = argv[1], argv[2:], {}
+    while rest:  # only the documented flags, each with a value; nothing is silently ignored
+        flag = rest.pop(0)
+        if flag not in ("--policy", "--previous", "--out") or not rest or flag in opts:
+            print("usage: unknown, repeated or valueless option %r" % flag)
+            return 2
+        opts[flag] = rest.pop(0)
     pol, prev = {}, None
     if "--policy" in opts:
-        with open(opts["--policy"], encoding="utf-8") as f:
-            pol = json.load(f)
+        pol, err = read(opts["--policy"], "policy")
+        if err:
+            print("invalid policy:", err)
+            return 2
     if "--previous" in opts:
-        with open(opts["--previous"], encoding="utf-8") as f:
-            prev = json.load(f)
+        prev, err = read(opts["--previous"], "previous report")
+        ps = prev.get("passes", {}) if isinstance(prev, dict) else None
+        if err or not (isinstance(ps, dict) and all(isinstance(v, dict) for v in ps.values())):
+            print("usage:", err or "the previous report must be a JSON object whose `passes` maps check -> {object: fingerprint}")
+            return 2
     probs = policy_problems(pol)
     if probs:
         print("invalid policy:", *probs, sep="\n  - ")
         return 2
-    R, why = run(d, pol, prev)
+    try:
+        R, why = run(d, pol, prev)
+    except Unreadable as e:
+        R, why = None, ["unreadable export file %s" % e]
+    except Exception as e:  # noqa: BLE001 - backstop: a crash must never exit 1 ("findings") or draw a conclusion
+        print("no conclusion drawn: the checks stopped on an input shape they do not support (%s: %s)" % (e.__class__.__name__, str(e)[:120]))
+        return 2
     if why:
         print("INCOMPLETE export: no conclusion drawn (nothing is reported as absent or passing):")
         for w in why:

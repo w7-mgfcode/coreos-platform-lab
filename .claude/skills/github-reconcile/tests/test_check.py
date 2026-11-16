@@ -160,6 +160,19 @@ class Relationships(unittest.TestCase):
         R, _ = run(base(), dict(POLICY, status_map={}))
         self.assertIn(("board", "MISSING"), classes(R, "C4-status"))
 
+    def test_absent_status_meaning_is_missing_and_raises_no_false_fail(self):
+        fx = base()
+        fx["issues"][2]["state"] = "closed"  # closed, board says Todo: a FAIL only if `done` is defined
+        smap = {k: v for k, v in POLICY["status_map"].items() if k != "done"}
+        R, _ = run(fx, dict(POLICY, status_map=smap))
+        got = classes(R, "C4-status")
+        self.assertIn(("status_map:done", "MISSING"), got)
+        self.assertNotIn(("#3", "FAIL"), got)
+        self.assertFalse([c for c in got if c[1] == "PASS"])  # a partly run check claims no PASS
+        self.assertNotIn("#3", R.passes.get("C4-status", {}))
+        R2, _ = run(fx)  # control: with `done` defined the same state is a FAIL
+        self.assertIn(("#3", "FAIL"), classes(R2, "C4-status"))
+
 
 class Milestones(unittest.TestCase):
     def test_closed_while_exit_unmet_fails(self):
@@ -167,6 +180,18 @@ class Milestones(unittest.TestCase):
         fx["milestones"][0]["state"] = "closed"
         R, _ = run(fx)
         self.assertIn(("milestone:M1", "FAIL"), classes(R, "C6-milestone"))
+
+    def test_closed_with_open_member_but_exit_list_met_is_fail_and_never_also_pass(self):
+        fx = base()
+        fx["milestones"][0]["state"] = "closed"
+        fx["issues"][2]["state"] = "closed"  # the exit's issue (#3) is closed; member #2 is still open
+        fx["issues"][2]["body"] = "- [x] do it *(proof: PR #9)*"
+        board(fx)["items"]["nodes"][2] = item(3, Status="Done", Kind="Sub-issue")
+        R, _ = run(fx)
+        got = classes(R, "C6-milestone")
+        self.assertIn(("milestone:M1", "FAIL"), got)
+        self.assertNotIn(("milestone:M1", "PASS"), got)
+        self.assertNotIn("milestone:M1", R.passes.get("C6-milestone", {}))
 
     def test_absent_or_empty_exit_is_missing_and_never_closes(self):  # B5
         for pol in (dict(POLICY, milestone_exits={}), dict(POLICY, milestone_exits={"M1": {}}),
@@ -194,6 +219,18 @@ class Milestones(unittest.TestCase):
             i["state"] = "closed"
         R, _ = run(fx)
         self.assertEqual([c["op"] for c in changes(R) if c["op"] == "close_milestone"], ["close_milestone"])
+
+
+class NotPlanned(unittest.TestCase):
+    def test_closed_as_not_planned_is_owner_and_never_also_pass(self):
+        fx = base()
+        fx["issues"][2] = issue(3, state="closed", labels=["type:sub-issue"], body="- [x] do it *(proof: PR #9)*", reason="not_planned")
+        board(fx)["items"]["nodes"][2] = item(3, Status="Done", Kind="Sub-issue")
+        R, _ = run(fx)
+        got = classes(R, "C5-closure")
+        self.assertIn(("#3", "OWNER"), got)
+        self.assertNotIn(("#3", "PASS"), got)
+        self.assertNotIn("#3", R.passes.get("C5-closure", {}))  # so a later run cannot report it RETAINED
 
 
 class Waivers(unittest.TestCase):
@@ -378,6 +415,12 @@ class Hygiene(unittest.TestCase):
 
 
 class Board(unittest.TestCase):
+    def test_required_role_without_definition_is_missing_not_silently_dropped(self):
+        R, _ = run(base(), dict(POLICY, required_roles=["kind", "knd"]))  # a misspelled role
+        self.assertIn(("role:knd", "MISSING"), classes(R, "C7-board"))
+        R2, _ = run(base())  # control: every required role defined, no such row
+        self.assertFalse([c for c in classes(R2, "C7-board") if c[1] == "MISSING"])
+
     def test_items_keyed_by_repo_type_number(self):  # B8
         fx = base()
         nodes = board(fx)["items"]["nodes"]
@@ -419,6 +462,85 @@ class Board(unittest.TestCase):
                 self.assertEqual(check.main(["check.py", d, "--policy", pf]), 0)
                 os.remove(os.path.join(d, "labels.json"))
                 self.assertEqual(check.main(["check.py", d, "--policy", pf]), 3)
+
+
+class ExitCodes(unittest.TestCase):
+    """A crash must never look like "findings" (exit 1): bad input is 2, an unreadable export is 3."""
+
+    def rc(self, argv_tail, pol=POLICY, pol_text=None, before=None):
+        import io, contextlib
+        with tempfile.TemporaryDirectory() as d:
+            write(d, base())
+            pf = os.path.join(d, "pol.json")
+            with open(pf, "w") as f:
+                f.write(pol_text if pol_text is not None else json.dumps(pol))
+            if before:
+                before(d)
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                return check.main(["check.py", d] + [pf if a == "POL" else a for a in argv_tail])
+
+    def test_control_valid_run_reports_findings_as_before(self):
+        self.assertIn(self.rc(["--policy", "POL"]), (0, 1))
+
+    def test_missing_or_invalid_policy_file_is_2(self):
+        self.assertEqual(self.rc(["--policy", "/nonexistent/policy.json"]), 2)
+        self.assertEqual(self.rc(["--policy", "POL"], pol_text="{not json"), 2)
+        self.assertEqual(self.rc(["--policy", "POL"], pol_text="[1, 2]"), 2)
+
+    def test_wrong_policy_shapes_are_2_not_a_traceback(self):
+        for bad in (dict(POLICY, board_roles=dict(status=["Todo", "Done"])),
+                    dict(POLICY, exception_scopes={"D-12": "PR 5"}),
+                    dict(POLICY, field_aliases={"Type": "kind"}),
+                    dict(POLICY, stale_text=[dict(regex="(", new="x")]),
+                    dict(POLICY, plan_edges=[[1, "2"]]),
+                    dict(POLICY, required_roles="kind"),
+                    dict(POLICY, milestone_exits={"M1": dict(require_closed=1)}),
+                    dict(POLICY, owner_pending=[None]),
+                    dict(POLICY, exception_regex="accepted exception"),
+                    dict(POLICY, stale_text=[dict(regex="x", new=r"\g<missing>")])):
+            self.assertEqual(self.rc(["--policy", "POL"], pol=bad), 2, bad)
+
+    def test_malformed_previous_report_is_2(self):
+        for text in ('{"passes": []}', '{"passes": {"C1-coverage": []}}', '[]'):
+            def put(d, text=text):
+                with open(os.path.join(d, "prev.json"), "w") as f:
+                    f.write(text)
+            import io, contextlib
+            with tempfile.TemporaryDirectory() as d:
+                write(d, base()); put(d)
+                pf = os.path.join(d, "pol.json")
+                with open(pf, "w") as f:
+                    json.dump(POLICY, f)
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(check.main(["check.py", d, "--policy", pf, "--previous", os.path.join(d, "prev.json")]), 2, text)
+
+    def test_unforeseen_crash_is_2_never_findings(self):
+        fx = base()
+        fx["issues"][0]["labels"] = 7  # an export shape no validation foresees
+        import io, contextlib
+        with tempfile.TemporaryDirectory() as d:
+            write(d, fx)
+            with contextlib.redirect_stdout(io.StringIO()) as out:
+                self.assertEqual(check.main(["check.py", d]), 2)
+            self.assertIn("no conclusion drawn", out.getvalue())
+
+    def test_unknown_repeated_or_valueless_flag_is_2(self):
+        self.assertEqual(self.rc(["--policy", "POL", "--prev", "x.json"]), 2)
+        self.assertEqual(self.rc(["--policy"]), 2)
+        self.assertEqual(self.rc(["--policy", "POL", "--policy", "POL"]), 2)
+        self.assertEqual(self.rc(["--policy", "POL", "--previous", "/nonexistent/report.json"]), 2)
+
+    def test_truncated_export_file_is_3(self):
+        def cut(d):
+            with open(os.path.join(d, "labels.json"), "w") as f:
+                f.write('[{"name": "type:ep')
+        self.assertEqual(self.rc(["--policy", "POL"], before=cut), 3)
+
+    def test_fingerprint_of_unreadable_file_is_2(self):
+        import io, contextlib
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(check.main(["check.py", "fingerprint", "/nonexistent/x.json"]), 2)
+            self.assertEqual(check.main(["check.py", "fingerprint"]), 2)
 
 
 class Fingerprints(unittest.TestCase):

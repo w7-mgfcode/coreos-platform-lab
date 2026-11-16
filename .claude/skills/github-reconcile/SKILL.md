@@ -20,7 +20,7 @@ Counts, branch names, field names and statuses are never remembered. Take them f
 | Key | Meaning | Source |
 |---|---|---|
 | `hierarchy`, `type_label_prefix`, `no_milestone_types` | type values (top first), the type-label prefix, types exempt from a milestone | plan / steward definition |
-| `board_roles` | role → option list (`status`, work type, area, priority, tier, ...) | board README / plan |
+| `board_roles` | object: role → `{"options": [option names]}` (`status`, work type, area, priority, tier, ...) | board README / plan |
 | `status_map` | meanings: `done`, `blocked`, `ready`, `in_progress`, `in_review` → option names | board README |
 | `required_roles` | roles every board item must have set | plan |
 | `blocked_label` | label that mirrors the Blocked status (default `status:blocked`) | plan |
@@ -28,10 +28,23 @@ Counts, branch names, field names and statuses are never remembered. Take them f
 | `milestone_exits` | per milestone title: `require_closed` (issue numbers) and/or `require_labels_closed`; a non-empty, resolvable exit is required | plan (the milestone text is prose: **given**) |
 | `milestones_on_issues_only` | the plan gives milestones to issues only | plan |
 | `builtin_fields` | board field names the README need not mention (the built-in ones: Title, Assignees, Labels, ...) | **given** (no document lists them) |
-| `field_aliases`, `stale_text` | old field names → live name by role; regex → replacement for text that is wrong now | operator's reading |
+| `field_aliases`, `stale_text` | lists of objects: `{"old": name, "role": role}` (an old field name → the live name of that role); `{"regex", "new", "why"}` (text that is wrong now → its replacement) | operator's reading |
 | `proof_regex`, `exception_regex` | what counts as proof; the exception-tag pattern (default captures `D-nn`) | board README |
 | `exception_scopes` | `D-nn` → `{prs, issues, waives}`: where it applies and what it waives (a substring of the criterion) | the decision row |
 | `owner_pending` | `{object, match, decision}`: unticked criteria that wait on a stated open decision → OWNER | the decision log; the reader reclassifies only with a stated decision |
+
+Shapes of the non-scalar values (`plan_edges`, `field_aliases`, `stale_text` and `owner_pending` are lists). The numbers and names below are placeholders. A wrong shape is an invalid policy (exit 2):
+
+```json
+{"board_roles": {"status": {"options": ["Backlog", "Done"]}, "kind": {"options": ["Epic", "Sub-issue"]}},
+ "status_map": {"done": "Done"},
+ "plan_edges": [[12, 7]],
+ "milestone_exits": {"M-name": {"require_closed": [12], "require_labels_closed": ["gate:x"]}},
+ "exception_scopes": {"D-nn": {"prs": [5], "issues": [], "waives": "pre-push scan"}},
+ "field_aliases": [{"old": "Type", "role": "kind"}],
+ "stale_text": [{"regex": "old sentence", "new": "new sentence", "why": "decided later"}],
+ "owner_pending": [{"object": "#12", "match": "criterion text", "decision": "the stated open decision"}]}
+```
 
 **Board fields are resolved by their option set**, not by name: the work-type field is whichever single-select carries exactly the hierarchy options, whatever the Project calls it.
 
@@ -39,7 +52,7 @@ Counts, branch names, field names and statuses are never remembered. Take them f
 
 1. **Inventory.** `scripts/inventory.sh OWNER/REPO PROJECT_OWNER PROJECT_NUMBER OUT_DIR` (read-only; OUT_DIR new, untracked, outside the repository), or the same calls by hand: issues and pull requests, milestones, labels, per-issue native sub-issues and `blocked_by`, closing references, the whole board, with `node_id` and `updated_at`.
 2. **Completeness gate.** Complete only if every fetch succeeded, every list ended with no next page, **no nested GraphQL connection (closing references, fields, views, view fields, item field values) reports a next page**, the exported counts equal the totals GraphQL reports, project `hasNextPage` is false, every export file exists, every issue has a `sub_issues` and a `blocked_by` entry, every pull request has a `closing` entry, and every board item has its repository identity. `inventory.sh` exits 1 and writes `complete=false` otherwise (it also checks that each local intermediate holds one line per issue and that the merged board items equal the board's total). Then stop: **never conclude "absent", "orphan" or "no parent" from a truncated or failed fetch** (`check.py` exits 3). A gap in issue numbers is a note, not a failure.
-3. **Checks.** `python3 -I scripts/check.py OUT_DIR --policy policy.json [--previous report.json] --out report.json`. Exit status: **0** nothing to act on (no FAIL, MISSING or OWNER row), **1** findings, **2** usage or invalid policy (a `waivers` key is rejected, not ignored), **3** export incomplete (no conclusion). **Exit 0 with WAIVER rows means "nothing to act on; N accepted exceptions, not passes"**: the summary always prints the WAIVER count and lists each waived criterion. Informational notes (what the API does not expose; the board's item counts by kind) are printed as `note:` lines and kept in the report; they never change the exit.
+3. **Checks.** `python3 -I scripts/check.py OUT_DIR --policy policy.json [--previous report.json] --out report.json`. Exit status: **0** nothing to act on (no FAIL, MISSING or OWNER row), **1** findings, **2** usage or invalid policy (or an input shape the checks do not support: no conclusion is drawn) (a `waivers` key is rejected, not ignored), **3** export incomplete (no conclusion). **Exit 0 with WAIVER rows means "nothing to act on; N accepted exceptions, not passes"**: the summary always prints the WAIVER count and lists each waived criterion. Informational notes (what the API does not expose; the board's item counts by kind) are printed as `note:` lines and kept in the report; they never change the exit.
 
    | Check | Looks for |
    |---|---|
