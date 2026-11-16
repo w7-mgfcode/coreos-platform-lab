@@ -1,0 +1,52 @@
+# Checks that the pull-request title follows the commit grammar of .claude/rules/commit-format.md:
+# type(scope): description (#issue). With squash merges the title becomes the commit subject on
+# main, and the local commit hook never sees it. The title is passed as an environment variable and
+# only compared: the step never executes it and never prints it. Issue #18 extends this workflow
+# with the platform static-gates job that runs scripts/validate.sh.
+name: ci
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+permissions: {}
+
+concurrency:
+  group: ci-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-title:
+    name: pr-title
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Check the title against the commit grammar
+        shell: bash
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          LC_ALL: C.UTF-8
+        run: |
+          set -euo pipefail
+          types='feat|fix|docs|refactor|test|chore|release'
+          scopes='host|compose|proxy|web|mail|logs|monitoring|firewall|backup|tests|docs|diagrams|ci|repo|release'
+          fail() {
+            echo "::error title=PR title::$1"
+            echo "Expected: type(scope): description (#issue), as in .claude/rules/commit-format.md."
+            exit 1
+          }
+          [[ -n "$PR_TITLE" ]] || fail "The title is empty."
+          [[ "$PR_TITLE" != *[[:cntrl:]]* ]] || fail "The title contains a line break or a control character."
+          re="^(${types})(\\((${scopes})(,(${scopes}))?\\))?: (.+) \\(#([1-9][0-9]*)\\)\$"
+          [[ "$PR_TITLE" =~ $re ]] || fail "The title does not match type(scope): description (#issue) with an allowed type, an allowed scope and an issue number."
+          type="${BASH_REMATCH[1]}"
+          scope="${BASH_REMATCH[2]}"
+          desc="${BASH_REMATCH[6]}"
+          if [[ -z "$scope" && "$type" != docs && "$type" != release ]]; then
+            fail "Only docs and release may omit the scope."
+          fi
+          [[ "$desc" =~ ^[a-z] ]] || fail "The description must start with a lowercase letter."
+          [[ "$desc" == "${desc,,}" ]] || fail "The description must be lowercase."
+          [[ "$desc" != *[[:space:]] ]] || fail "The description must not end with a space."
+          [[ "$desc" != *. ]] || fail "The description must not end with a period."
+          echo "The title follows the commit grammar."
