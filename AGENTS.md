@@ -21,8 +21,10 @@ Read this before acting. It describes how to find the state, because the state c
   `tests/` and `docs/evidence/` do not exist, nothing is built or tested. Never describe a
   requirement as built, tested or passed without committed evidence.
 - **Two owner gates** (decision D-09). The publication gate holds back every commit, push,
-  remote, tag and GitHub object. The implementation gate holds back all platform configuration
-  and any contact with the lab. The implementation gate is open only when
+  remote, tag and GitHub object. The initial publication was made once, on the owner's go-ahead
+  of 2026-11-16 (D-54); that go-ahead is used up, and every later commit, branch, push, pull
+  request, tag and GitHub object needs the owner again. The implementation gate holds back all
+  platform configuration and any contact with the lab. The implementation gate is open only when
   `docs/.prepare/decision-log.md` § 5 carries a dated approval line; the publication gate only
   when the owner says so. An issue, an agent report or a review opens neither.
 - **Proposals are not decisions.** Everything under `docs/.prepare/` is a proposal unless the
@@ -136,9 +138,9 @@ this section is updated in the same change.
   (`.claude/rules/branch-naming.md`).
 - **Commits**: `type(scope): description (#issue)` with a scope from the allow-list and an open
   issue (`.claude/rules/commit-format.md`). No AI co-author or "Generated with" line, ever.
-- **Flow**: issue → branch → pull request → `main`. No `dev` branch. The one exception is the
-  bootstrap commit: a single direct push to `main` under the bootstrap issue (decision D-28),
-  which still needs the owner's go-ahead. One SemVer train, tagged by
+- **Flow**: issue → branch → pull request → `main`. No `dev` branch. The one exception was the
+  bootstrap commit: a single direct push to `main` under the bootstrap issue (decisions D-28 and
+  D-54). It is used up; every later change is a pull request. One SemVer train, tagged by
   hand after the release gate; ask the owner before any tag (`.claude/rules/versioning.md`).
 - **GitHub work** belongs to the `github-steward` role, and its publishing stage starts only
   after the publication gate.
