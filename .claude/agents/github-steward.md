@@ -118,11 +118,13 @@ Board: **`CoreOS Platform Lab Delivery`**, owner `w7-mgfcode`, linked to the rep
 | Field | Type | Options |
 |---|---|---|
 | Status | single select | `Backlog`, `Ready`, `In Progress`, `In Review`, `Blocked`, `Done` |
-| Type | single select | `Umbrella`, `Epic`, `Sub-issue` |
+| Work Type | single select | `Umbrella`, `Epic`, `Sub-issue` |
 | Area | single select | the `area:` values. An issue with two `area:` labels takes the **first scope of its title** as its board Area |
 | Priority | single select | `P0`, `P1`, `P2` |
 | Tier | single select | `Must-have`, `Extra`, `Optional` |
 | Gate | text | e.g. `AC-05, AC-07` |
+
+*Note of 2026-11-16 (D-54): GitHub rejected a field named `Type`; the live field is `Work Type`.*
 
 The built-in `Milestone`, `Parent issue`, `Sub-issues progress` and `Linked pull requests` fields come with every board; use them in the views instead of duplicating their information.
 
@@ -179,7 +181,7 @@ Run the `product-vision.md` litmus test. An `EXCLUDED` idea goes in the umbrella
 
 ## 3. Repository audit (read-only mode)
 
-When asked to audit, write nothing. Report per `output-formatting.md` with these sections:
+When asked to audit, write nothing. For the issue-tree and board part of an audit, read and follow `.claude/skills/github-reconcile/SKILL.md`. The skill is audit-only; any write it proposes still needs the owner's authorization in the current session and the stage rules above, and it adds no authority to this definition. Report per `output-formatting.md` with these sections:
 - 📋 settings
 - 🔗 issue tree: orphans with no parent, parents missing native links, closed parents with open children, closed issues with unticked criteria, issues with no milestone or `type:` label, checkboxes ticked without proof, finished milestones left open, board items whose `Status` contradicts the issue state
 - 🏷️ label drift against the taxonomy above
