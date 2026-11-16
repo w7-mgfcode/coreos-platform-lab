@@ -1,0 +1,199 @@
+#!/usr/bin/perl
+# corelab-snippet-put — forced-command snippet writer for the Proxmox lab agent.
+#
+# Installed as /usr/local/sbin/corelab-snippet-put and run by sshd for the non-root user
+# corelab-snip through:  restrict,from="...",command="/usr/local/sbin/corelab-snippet-put"
+# The client's command line arrives only in SSH_ORIGINAL_COMMAND and is parsed strictly:
+#
+#   put <slug>   read an Ignition JSON document from stdin, store it as corelab-<slug>.ign
+#   rm <slug>    remove corelab-<slug>.ign
+#   list         list the stored corelab-*.ign files
+#
+# Safety properties (tested offline, see lab-agent/tests/test_snippet_writer.py):
+#   * one fixed directory from a root-owned config file; it must be a real directory
+#     (not a symlink), equal to its own realpath, not writable by "other", and, when the
+#     config sets expected_dir_uid (the installed config sets 0), owned by that user, so a
+#     directory the writer's own user owns is refused. That is an ownership check at the
+#     moment of inspection, not a pin on the directory's identity: later opens are by path,
+#     so the ancestors of the directory must be root-owned and not writable by this user
+#     (a property of the installation, checked by the harness, not provided by this check);
+#   * names are corelab-<slug>.ign with slug ^[a-z0-9][a-z0-9-]{0,47}$, so no path parts;
+#   * an existing target must be a regular file owned by this user with one link;
+#     symlinks, hard links, directories and foreign files are refused (and `list` shows
+#     only such files);
+#   * writes go to an O_EXCL|O_NOFOLLOW temp file in the same directory, set to 0644 through
+#     the open handle, fsynced and renamed over the target (rename replaces a name, never
+#     follows it); the temp file is removed on every handled exit path (not after SIGKILL or a
+#     crash; see the note at $PENDING_TMP);
+#   * content must be <= max_bytes of valid JSON with ignition.version 3.x.y.
+#
+# Exit codes: 0 ok, 2 refused request, 3 invalid content or unsafe target, 4 I/O error.
+# Perl and JSON::PP are part of every Proxmox VE host, so nothing is installed for this.
+
+use strict;
+use warnings;
+use Cwd qw(realpath);
+use Digest::SHA qw(sha256_hex);
+use Fcntl qw(O_WRONLY O_CREAT O_EXCL O_NOFOLLOW S_ISDIR S_ISREG);
+use IO::Handle;
+use JSON::PP ();
+
+my $CONFIG = '/etc/corelab/snippet-writer.conf';
+my $SLUG   = qr/\A[a-z0-9][a-z0-9-]{0,47}\z/;
+
+# The temporary file of a put in progress. A refusal, a die, an exit or a handled termination
+# signal (HUP INT TERM PIPE) after the file exists ends in the END block below, which removes it,
+# so a late refusal (for example the re-check just before the rename) cannot leave it behind.
+# Handled signals are deferred across the window between creating the file and registering it in
+# $PENDING_TMP, so a signal in that window cannot orphan it either. The first thing the END block
+# does is to ignore the four signals, so a second signal during the removal cannot cut it short
+# (a handler written in perl is no help there: in the END phase the signal takes its default action,
+# observed with perl 5.40). What remains is the instant between entering the END phase and those
+# four assignments. Not covered either: SIGKILL, an
+# out-of-memory kill, a crash of the machine or a power loss; no code can clean up after those,
+# and a stale `.corelab-tmp-*` file can remain (it is never listed and is replaced by name only
+# through a put of its own slug; the owner may delete it).
+my $PENDING_TMP;
+my ($DEFER, $DEFERRED) = (0, 0);
+END { $SIG{$_} = 'IGNORE' for qw(HUP INT TERM PIPE); if (defined $PENDING_TMP) { my $st = $?; unlink $PENDING_TMP; undef $PENDING_TMP; $? = $st; } }
+$SIG{$_} = sub { if ($DEFER) { $DEFERRED = 1 } else { exit 4 } } for qw(HUP INT TERM PIPE);
+
+sub fail { my ($code, $msg) = @_; print STDERR "corelab-snippet-put: $msg\n"; exit $code; }
+
+# Tests may point at another config file; sshd never passes arguments (forced command).
+if (@ARGV == 2 && $ARGV[0] eq '--config') { $CONFIG = $ARGV[1]; }
+elsif (@ARGV) { fail(2, 'no arguments accepted'); }
+
+sub read_config {
+    my %c = (max_bytes => 262144, expected_uid => $>);   # expected_dir_uid: unset = not checked
+    open(my $fh, '<', $CONFIG) or fail(4, "cannot read config");
+    while (my $line = <$fh>) {
+        next if $line =~ /\A\s*(#|\z)/;
+        $line =~ /\A\s*(dir|max_bytes|expected_uid|expected_dir_uid)\s*=\s*(\S+)\s*\z/ or fail(4, 'bad config line');
+        $c{$1} = $2;
+    }
+    close $fh;
+    defined $c{dir} && $c{dir} =~ m{\A/} or fail(4, 'config needs an absolute dir');
+    $c{max_bytes} =~ /\A\d+\z/ && $c{expected_uid} =~ /\A\d+\z/ or fail(4, 'bad numeric config');
+    !defined $c{expected_dir_uid} || $c{expected_dir_uid} =~ /\A\d+\z/ or fail(4, 'bad numeric config');
+    return \%c;
+}
+
+sub check_dir {
+    my ($dir, $cfg) = @_;
+    my @st = lstat($dir) or fail(4, 'snippet directory missing');
+    S_ISDIR($st[2]) or fail(3, 'snippet directory is not a directory (or is a symlink)');
+    my $real = realpath($dir);
+    defined $real && $real eq $dir or fail(3, 'snippet directory path is not canonical');
+    ($st[2] & 0002) == 0 or fail(3, 'snippet directory is world-writable');
+    !defined $cfg->{expected_dir_uid} || $st[4] == $cfg->{expected_dir_uid}
+        or fail(3, 'snippet directory is not owned by the expected user');
+}
+
+# An existing target may only be replaced or removed if it is ours, regular, single-link.
+sub check_existing {
+    my ($path, $cfg) = @_;
+    my @st = lstat($path);
+    return 0 unless @st;
+    -l _ and fail(3, 'target is a symlink');
+    S_ISREG($st[2]) or fail(3, 'target is not a regular file');
+    $st[4] == $cfg->{expected_uid} or fail(3, 'target is owned by another user');
+    $st[3] == 1 or fail(3, 'target has more than one link');
+    return 1;
+}
+
+sub read_payload {
+    my ($max) = @_;
+    binmode STDIN;
+    my ($buf, $total) = ('', 0);
+    while (1) {
+        my $n = sysread(STDIN, my $chunk, 65536);
+        defined $n or fail(4, 'read error');
+        last if $n == 0;
+        $total += $n;
+        $total <= $max or fail(3, "content larger than $max bytes");
+        $buf .= $chunk;
+    }
+    length $buf or fail(3, 'empty content');
+    my $doc = eval { JSON::PP->new->utf8->decode($buf) };
+    ref $doc eq 'HASH' or fail(3, 'content is not a JSON object');
+    my $ver = ref $doc->{ignition} eq 'HASH' ? $doc->{ignition}{version} : undef;
+    defined $ver && !ref $ver && $ver =~ /\A3\.\d+\.\d+\z/ or fail(3, 'not an Ignition 3.x document');
+    return $buf;
+}
+
+sub do_put {
+    my ($cfg, $slug) = @_;
+    my $dir = $cfg->{dir};
+    my $name = "corelab-$slug.ign";
+    my $target = "$dir/$name";
+    check_dir($dir, $cfg);
+    check_existing($target, $cfg);
+    my $data = read_payload($cfg->{max_bytes});
+
+    my ($tmp, $fh);
+    $DEFER = 1;                                   # no handled signal between create and register
+    for (1 .. 5) {
+        $tmp = sprintf('%s/.corelab-tmp-%d-%06d', $dir, $$, int(rand(1_000_000)));
+        last if sysopen($fh, $tmp, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
+        undef $fh;
+    }
+    $PENDING_TMP = $tmp if $fh;
+    $DEFER = 0;
+    exit 4 if $DEFERRED;                          # END removes the registered file
+    $fh or fail(4, 'cannot create temp file');
+    my $ok = eval {
+        binmode $fh;
+        my $off = 0;
+        while ($off < length $data) {
+            my $w = syswrite($fh, $data, length($data) - $off, $off);
+            defined $w or die "write\n";
+            $off += $w;
+        }
+        # Mode through the open handle, before the close: a pathname chmod after the close would
+        # follow a symlink that another process with write access to the directory put in place
+        # of the temporary name.
+        chmod(0644, $fh) or die "chmod\n";
+        $fh->sync or die "fsync\n";
+        close $fh or die "close\n";
+        check_existing($target, $cfg);          # re-check just before the rename
+        rename $tmp, $target or die "rename\n";
+        undef $PENDING_TMP;                     # renamed: nothing left to remove
+        1;
+    };
+    unless ($ok) { fail(4, 'write failed'); }
+    printf "ok put %s bytes=%d sha256=%s\n", $name, length $data, sha256_hex($data);
+}
+
+sub do_rm {
+    my ($cfg, $slug) = @_;
+    check_dir($cfg->{dir}, $cfg);
+    my $target = "$cfg->{dir}/corelab-$slug.ign";
+    if (!check_existing($target, $cfg)) { print "ok absent corelab-$slug.ign\n"; return; }
+    unlink $target or fail(4, 'remove failed');
+    print "ok removed corelab-$slug.ign\n";
+}
+
+sub do_list {
+    my ($cfg) = @_;
+    check_dir($cfg->{dir}, $cfg);
+    opendir(my $dh, $cfg->{dir}) or fail(4, 'cannot list');
+    for my $f (sort readdir $dh) {
+        next unless $f =~ /\Acorelab-[a-z0-9][a-z0-9-]{0,47}\.ign\z/;
+        my @st = lstat("$cfg->{dir}/$f");
+        next unless @st && S_ISREG($st[2]) && !-l _ && $st[4] == $cfg->{expected_uid} && $st[3] == 1;
+        printf "%s %d\n", $f, $st[7];
+    }
+    closedir $dh;
+}
+
+umask 022;
+my $cmd = $ENV{SSH_ORIGINAL_COMMAND} // '';
+$cmd =~ /\A[a-z0-9 -]{1,64}\z/ or fail(2, 'refused');
+my @w = split / /, $cmd, -1;
+my $cfg = read_config();
+if    (@w == 2 && $w[0] eq 'put'  && $w[1] =~ $SLUG) { do_put($cfg, $w[1]); }
+elsif (@w == 2 && $w[0] eq 'rm'   && $w[1] =~ $SLUG) { do_rm($cfg, $w[1]); }
+elsif (@w == 1 && $w[0] eq 'list')                    { do_list($cfg); }
+else  { fail(2, 'refused'); }
+exit 0;

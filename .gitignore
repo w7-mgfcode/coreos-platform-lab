@@ -43,9 +43,32 @@ Thumbs.db
 .agents/skills/writing-session-handoffs/
 .claude/commands/prompts/ai-engineer-doc-architect-prompt.md
 
-# Proxmox lab-access tooling: excluded from the initial publication (decision D-49).
-# The files stay on disk. Adding them later needs a separate owner decision and pull request.
-/lab-agent/
+# Proxmox lab tooling. lab-agent/ is tracked (decision D-57; it was excluded from the initial
+# publication, D-49) except the local-only files below. Private settings, state, logs and
+# reports of a working copy never enter the repository.
+/lab-agent/env
+/lab-agent/env.*
+!/lab-agent/env.example
+/lab-agent/state/
+/lab-agent/logs/
+/lab-agent/reports/
+/lab-agent/*.log
+# Dated history, not current: kept outside the repository.
+/lab-agent/docs/l1-closeout.md
+# Proposed patches: only the four that the unit tests apply are tracked.
+/lab-agent/docs/proposed-patches/*
+!/lab-agent/docs/proposed-patches/pve-guard-fail-closed.patch
+!/lab-agent/docs/proposed-patches/pve-guard-absolute-path-ssh.patch
+!/lab-agent/docs/proposed-patches/pve-guard-ssh-alias-form.patch
+!/lab-agent/docs/proposed-patches/l2-source-address-pve-lab-agent.patch
+# Four synthetic TLS test fixtures (test-only, they protect nothing; see lab-agent/tests/README.md):
+# exceptions to the global *.pem and *.key rules, and nothing broader.
+!/lab-agent/tests/tls-fixture-ca-nokeyusage.pem
+!/lab-agent/tests/tls-fixture-ca-unrelated.pem
+!/lab-agent/tests/tls-fixture-server.pem
+!/lab-agent/tests/tls-fixture-server.key
+# Parts of the lab workstream that stay local (not covered by D-57): the MCP server entry, the
+# active guard hook and agent definition, the design plan and the proposed governance changes.
 /.mcp.json
 /.claude/agents/pve-lab.md
 /.claude/hooks/pve-guard.py

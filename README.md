@@ -9,6 +9,7 @@ A repó a végeredmény mellett a fejlesztési folyamatot is megmutatja: verzió
 **Megtervezve; még nincs megépítve és nincs tesztelve.**
 
 - A repó jelenleg tervet, ábrákat és fejlesztési eszközkonfigurációt tartalmaz.
+- A `lab-agent/` könyvtár a labor Proxmox-hostjához készült kiegészítő fejlesztői eszköz (angol nyelvű). Nem része a feladat megoldásának: offline tesztekkel ellenőrzött, a laboron eddig egyetlen, csak olvasó API-kapcsolati próba futott vele (a tulajdonos két szűk, már felhasznált engedélyével); a platformot nem konfigurálja, és egyetlen követelmény teljesülését sem igazolja.
 - Platformkonfiguráció (Butane, Compose, Caddyfile, tűzfalszabályok), teszt és bizonyíték még nincs.
 - Egyetlen követelmény sem tekinthető teljesítettnek, amíg az átvételi ellenőrzése le nem futott a laboron, és a bizonyítéka be nem került a repóba.
 
@@ -28,6 +29,7 @@ A feladat értékelőjének válaszai alapján:
 | [docs/alternatives/swarm.md](docs/alternatives/swarm.md) | Az elvetett Docker Swarm változat, csak háttéranyagként |
 | [diagrams/](diagrams/) | Ábrák három formátumban (Excalidraw, SVG, PNG) és a generátoraik; leírás: [diagrams/SOURCES.txt](diagrams/SOURCES.txt) |
 | [docs/.prepare/README.md](docs/.prepare/README.md) | Előkészítő munkaanyag (angolul): döntésnapló, nyitott kérdések, tervfelülvizsgálat, megvalósítási terv |
+| [lab-agent/README.md](lab-agent/README.md) | Kiegészítő laboreszköz (angolul): állapot, korlátok, offline tesztek; a labor elérésére nem ad felhatalmazást |
 
 ![Áttekintő ábra: egy Fedora CoreOS VM, Docker Compose, tűzfal mögött](diagrams/07-arch-a-compose-dark.png)
 

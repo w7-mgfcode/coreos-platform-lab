@@ -1,0 +1,131 @@
+# PROPOSED PATCH. NOT APPLIED. For the owner. Refreshed 2026-11-16 (mission L1B, task LA-GUARD).
+# Target (review-only, active hook): .claude/hooks/pve-guard.py
+# Target baseline sha256: ff85e994c8233b00dd507cf5bc240f77fe03dc2ff2cde78d1aa340bccccbe479
+# Result sha256 (after this patch): 1f309634589244023cd972ffa54b921c2cc874740f8cc8a69063b085fa371ca5
+# Finding G-1: an internal error in decide() or audit(), a payload that is not valid JSON or
+# is nested too deep, and an event with a wrong field type or no tool name now all exit 2
+# in the script itself, instead of a traceback with exit 1 that blocks only if the harness
+# honours "onFailure". Event validation is new in this refresh. Round 2 (independent review):
+# the input is read as bytes, bounded at 4 MiB and decoded strictly as UTF-8; an explicit null
+# in tool_input, agent_type or permission_mode is a wrong type, not an absence; the decision is
+# written and flushed inside the protected block, and a failed write ends in exit 2 without a
+# second flush at interpreter exit (it was exit 120).
+# Verified only on isolated copies with synthetic input, offline (tests/test_l1b_guard_candidate.py).
+# The hook stays a convenience and audit layer, not a security boundary.
+# Apply order for the three guard patches: fail-closed, then absolute-path-ssh, then ssh-alias-form.
+# Each one is generated against the file the previous one leaves, and the three together
+# produce lab-agent/proposed/hooks/pve-guard.py byte for byte.
+# Applies on the active file alone (first in the order).
+# Check, then apply, from the repository root:
+#   git apply --check lab-agent/docs/proposed-patches/pve-guard-fail-closed.patch
+--- a/.claude/hooks/pve-guard.py
++++ b/.claude/hooks/pve-guard.py
+@@ -114,28 +114,97 @@
+         fh.write(json.dumps(entry, sort_keys=True) + "\n")
+ 
+ 
++MAX_INPUT = 4 * 1024 * 1024  # bytes. No hook event is near this; anything larger is not inspected.
++
++
++def _say(message: str) -> None:
++    """Write to stderr; a closed or broken stderr must not turn a block into a crash, and its
++    unflushed text must not fail a second time at interpreter exit."""
++    try:
++        print(message, file=sys.stderr)
++        sys.stderr.flush()
++    except Exception:
++        _abandon_stdout(sys.stderr)
++
++
++def _read_event_text(stdin) -> str:
++    """The event as text: read as bytes, bounded, and decoded strictly (no surrogateescape)."""
++    source = getattr(stdin, "buffer", stdin)  # a real stdin has a binary layer; a test stream may not
++    data = source.read(MAX_INPUT + 1)
++    if len(data) > MAX_INPUT:
++        raise ValueError("hook input is larger than the inspection limit")
++    return data.decode("utf-8") if isinstance(data, bytes) else data
++
++
++def _abandon_stdout(stdout) -> None:
++    """After a failed write, point the descriptor at the null device, so that whatever is still
++    buffered cannot fail a second time when the interpreter exits (that exit was status 120)."""
++    try:
++        null = os.open(os.devnull, os.O_WRONLY)
++        try:
++            os.dup2(null, stdout.fileno())
++        finally:
++            os.close(null)
++    except Exception:
++        pass
++
++
++def validate_event(event: dict) -> None:
++    """Raise ValueError for an event the guard cannot reason about; main() then blocks.
++
++    A hook payload that is not what the harness documents is not trusted to be harmless:
++    the call is blocked instead of being passed on a guess. An optional field may be absent,
++    but if it is present it must have its type: an explicit null is a wrong type, not an absence.
++    """
++    tool = event.get("tool_name")
++    if not isinstance(tool, str) or not tool:
++        raise ValueError("tool_name is missing or not a string")
++    for key, kind in (("tool_input", dict), ("agent_type", str), ("permission_mode", str)):
++        if key in event and not isinstance(event[key], kind):
++            raise ValueError(f"{key} is present but not {kind.__name__}")
++    if tool == "Bash" and not isinstance(event.get("tool_input", {}).get("command"), str):
++        raise ValueError("the Bash command is missing or not a string")
++
++
+ def main(stdin=sys.stdin, stdout=sys.stdout, env=None) -> int:
+     env = dict(os.environ if env is None else env)
+     try:
+-        event = json.loads(stdin.read())
++        event = json.loads(_read_event_text(stdin))
+         if not isinstance(event, dict):
+             raise ValueError("event is not an object")
+-    except (ValueError, json.JSONDecodeError) as exc:
+-        print(f"pve-guard: unreadable hook input: {exc}", file=sys.stderr)
++        validate_event(event)
++    except Exception as exc:  # also RecursionError and UnicodeDecodeError: fail closed
++        _say(f"pve-guard: unreadable or malformed hook input ({type(exc).__name__}): {exc}")
+         return 2  # block: fail closed
+-    decision, reason, relevant = decide(event)
++    try:
++        decision, reason, relevant = decide(event)
++    except Exception as exc:  # fail closed here too; do not rely only on the harness's onFailure
++        _say(f"pve-guard: internal error, blocking ({type(exc).__name__})")
++        return 2
+     if relevant:
+         try:
+             audit(event, decision, reason, env)
+-        except OSError as exc:
+-            print(f"pve-guard: cannot write the audit log: {exc}", file=sys.stderr)
+-            return 2  # a lab call that cannot be audited does not run
++        except Exception as exc:  # a lab call that cannot be audited does not run
++            _say(f"pve-guard: cannot write the audit log ({type(exc).__name__}): {exc}")
++            return 2
+     if decision:
+-        json.dump({"hookSpecificOutput": {"hookEventName": "PreToolUse",
+-                                          "permissionDecision": decision,
+-                                          "permissionDecisionReason": reason}}, stdout)
++        try:
++            stdout.write(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse",
++                                                           "permissionDecision": decision,
++                                                           "permissionDecisionReason": reason}}))
++            stdout.flush()
++        except Exception as exc:  # the decision could not be delivered: block, and never flush again
++            _say(f"pve-guard: cannot write the decision, blocking ({type(exc).__name__})")
++            _abandon_stdout(stdout)
++            return 2
+     return 0
+ 
+ 
+ if __name__ == "__main__":
+-    sys.exit(main())
++    try:
++        code = main()
++    except BaseException as exc:  # last resort: still exit 2, never 1
++        _say(f"pve-guard: unexpected failure, blocking ({type(exc).__name__})")
++        _abandon_stdout(sys.stdout)
++        code = 2
++    sys.exit(code)

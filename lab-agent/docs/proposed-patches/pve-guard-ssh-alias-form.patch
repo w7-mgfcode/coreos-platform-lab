@@ -1,0 +1,112 @@
+# PROPOSED PATCH. NOT APPLIED. For the owner. Refreshed 2026-11-16 (mission L1B, task LA-GUARD).
+# Target (review-only, active hook): .claude/hooks/pve-guard.py
+# Target baseline sha256: ff85e994c8233b00dd507cf5bc240f77fe03dc2ff2cde78d1aa340bccccbe479 (active file)
+# Applies on: the file after the first two patches, sha256 3e25ab497d02e3aa153b76feb2974a9c42c4c2f8f406614087e752a3ce3f9f6f
+# Result sha256 (after this patch): 565d6050dff459d0fc82595731445db510f5dfb0af4a075619ca72910adcc5ed
+# Finding S-1g: inside pve-lab only `ssh [-T] pve-snip WORD...` is allowed. No option
+# anywhere (also written without a space or after the alias), no scp or sftp, no word the
+# shell expands first ($, backtick, glob, brace; a redirect target is exempt), and none of
+# the other connection tools or run-time decoders (see _SSH_OTHER). Every reading of the
+# command is checked: as written, unquoted, and with empty expansions removed. Round 2: a
+# redirect target may name a variable but not a command or process substitution (the first
+# version exempted the whole target, which hid an inner ssh from the other checks).
+# Verified only on isolated copies with synthetic input, offline (tests/test_l1b_guard_candidate.py).
+# The hook stays a convenience and audit layer, not a security boundary.
+# Apply order for the three guard patches: fail-closed, then absolute-path-ssh, then ssh-alias-form.
+# Each one is generated against the file the previous one leaves, and the three together
+# produce lab-agent/proposed/hooks/pve-guard.py byte for byte.
+# Needs the second patch (it uses the tool group of _SSH). Check, then apply, after the
+# first two, from the repository root:
+#   git apply --check lab-agent/docs/proposed-patches/pve-guard-ssh-alias-form.patch
+--- a/.claude/hooks/pve-guard.py
++++ b/.claude/hooks/pve-guard.py
+@@ -14,9 +14,16 @@
+     list and a glob with enough literal characters, and after any wrapper (command, env,
+     exec, bash -c, a here-string): the text is searched for the name, not parsed. A brace list that expands beyond 1024
+     words, or a word over 8 KiB that holds one, is denied as too complex to inspect;
+-  * inside the pve-lab agent: denies ssh to anything except the pve-snip alias, and refuses
+-    to work in bypassPermissions or with an unknown/missing permission mode;
++  * inside the pve-lab agent: allows ssh only as `ssh [-T] pve-snip WORD...` (no option, no
++    scp or sftp, no word the shell expands first), denies the other connection tools, and
++    refuses to work in bypassPermissions or with an unknown/missing permission mode;
++  * blocks (exit 2) an input it cannot read or decode strictly as UTF-8, an input over 4 MiB,
++    an event with a wrong field type (an explicit null included), a decision it cannot
++    deliver, and any internal error, instead of passing the call;
+   * appends one redacted JSON line per lab-relevant call to the audit log.
++Not catchable by a text match: a name built by a command substitution or by concatenating
++variables, a payload decoded at run time, a script file written first and run later, and any
++program that opens a connection by another name. See lab-agent/proposed/README.md.
+ Registered with "onFailure": "block": if this script crashes or times out, the call is blocked.
+ """
+ 
+@@ -176,14 +183,63 @@
+     return Path(base).expanduser() / "corelab-lab-agent"
+ 
+ 
++# Inside the lab agent only: other ways to open a connection or to run text that was built
++# elsewhere. None of them is part of the agent's routine work.
++_SSH_OTHER = re.compile(
++    r"(?<![\w.-])(?:ssh-agent|ssh-keyscan|ssh-keygen|ssh-copy-id|sshpass|autossh|mosh|sshfs|rsync"
++    r"|socat|ncat|netcat|nc|telnet|eval)(?![\w.-])"
++    r"|/dev/(?:tcp|udp)/|GIT_SSH|sshCommand|base64\s+(?:-d|--decode)|xxd\s+-r")
++_EXPANDS = ("$", "`", "*", "?", "[", "{")  # a word that the shell rewrites before ssh sees it
++
++
++def _redirect_target_ok(target: str) -> bool:
++    """A redirect target may name a variable, but it may not run anything: a command or process
++    substitution would hide a command from the checks that read the rest of the line."""
++    return not any(s in target for s in ("(", ")", "`"))
++
++
++def _ssh_form_ok(text: str) -> bool:
++    """One reading of the command. Inside the lab agent, ssh is allowed only as
++    `ssh [-T] pve-snip WORD...`: no option anywhere (ssh also parses options written without a
++    space, -oX or -F/x, and options after the destination), no scp or sftp, and no WORD that the
++    shell expands first, because an expansion can produce an option. A redirect target may
++    name a variable, but no command or process substitution. Still a text match and not a boundary: the host's from=
++    restriction and forced command are."""
++    if _SSH_OTHER.search(text):
++        return False
++    for m in _SSH.finditer(text):
++        if m.group("tool") != "ssh":
++            return False
++        words = m.group("args").split()
++        if words[:1] == ["-T"]:
++            words = words[1:]
++        if words[:1] != ["pve-snip"] or len(words) < 2:  # the alias alone would open a session
++            return False
++        redirect = False
++        for word in words[1:]:
++            if word.startswith("-"):
++                return False
++            if redirect:
++                redirect = False
++                if not _redirect_target_ok(word):
++                    return False
++                continue
++            op = re.match(r"\d*[<>]+", word)
++            if op:
++                rest = word[op.end():]
++                redirect = not rest
++                if rest and not _redirect_target_ok(rest):
++                    return False
++                continue
++            if any(c in word for c in _EXPANDS):
++                return False
++    return True
++
++
+ def _ssh_targets_ok(command: str) -> bool:
+-    """Inside the lab agent, the only SSH destination allowed is the pve-snip alias."""
+-    for m in _SSH.finditer(command):
+-        words = m.group("args").split()
+-        dest = next((w for w in words if not w.startswith("-")), "")
+-        if dest != "pve-snip":
+-            return False
+-    return True
++    """Inside the lab agent, every reading of the command (as written, unquoted, and with empty
++    expansions removed) must pass _ssh_form_ok."""
++    return all(_ssh_form_ok(form) for form in _forms(command))
+ 
+ 
+ def decide(event: dict) -> tuple[str | None, str, bool]:
