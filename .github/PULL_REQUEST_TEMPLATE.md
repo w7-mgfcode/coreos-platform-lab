@@ -19,6 +19,8 @@ Closes #
 <!--
 RUN: the exit status of scripts/validate.sh on this branch; or NOT RUN with the reason
 (no configuration changed, or the gate script does not exist yet). Never PASS without a run.
+A documentation change also needs the documentation checks of AGENTS.md ("Validation Gates"):
+links and anchors, tables, revision fields and no private data. Record them here as RUN or NOT RUN.
 -->
 
 ## Acceptance checks touched
@@ -38,7 +40,7 @@ One line per check: AC-nn — RUN (evidence link) / RETAINED (earlier evidence a
 
 ## Security check
 
-- [ ] No secret, token, private key or rendered `*.ign` in the diff
+- [ ] No secret, token, private key or rendered `*.ign` in the diff, the title or this body
 - [ ] No real name, mail address, lab address, host name or absolute home path in the diff, the title or this body
 - [ ] No `ports:` on any service but Caddy; every image pinned by version or digest
 - [ ] No disabled TLS verification, SELinux or firewall

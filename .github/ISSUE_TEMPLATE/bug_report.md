@@ -8,8 +8,9 @@ labels: "bug"
 <!--
 Title: the commit grammar without the issue suffix, lowercase, imperative, no trailing period.
 Do not paste secrets, tokens, lab addresses, host names, real names, mail addresses or absolute home
-paths. Redact command output before pasting it. Before work starts, the issue gets its type:, area:
-and priority: labels and a parent epic.
+paths. Redact command output before pasting it. Before work starts, the issue gets its type:, area:,
+tier: and priority: labels, is linked as a native sub-issue of its parent epic, and gets that
+epic's milestone.
 -->
 
 ## Summary

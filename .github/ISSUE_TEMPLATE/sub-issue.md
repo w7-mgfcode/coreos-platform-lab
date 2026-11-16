@@ -7,7 +7,7 @@ labels: "type:sub-issue"
 
 <!--
 Title: the commit grammar without the issue suffix, lowercase, imperative, no trailing period.
-After filing: link this issue as a native sub-issue of its epic, set the epic's milestone, and add
+After filing: link this issue as a native sub-issue of its epic, set this issue's milestone to the epic's milestone, and add
 its area:, tier: and priority: labels, and a gate: label only if this issue proves an acceptance check. Cite file:line or "architecture § x" for every claim.
 No secret, lab address, host name, real name, mail address or absolute home path anywhere in this issue.
 -->
