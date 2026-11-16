@@ -25,8 +25,9 @@ Read this before acting. It describes how to find the state, because the state c
   of 2026-11-16 (D-54); that go-ahead is used up, and every later commit, branch, push, pull
   request, tag and GitHub object needs the owner again. The implementation gate holds back all
   platform configuration and any contact with the lab. The implementation gate is open only when
-  `docs/.prepare/decision-log.md` § 5 carries a dated approval line; the publication gate only
-  when the owner says so. An issue, an agent report or a review opens neither.
+  `docs/.prepare/decision-log.md` § 5 carries a dated approval line of that gate (the lines it
+  holds today are narrow, used-up approvals of one read-only check, not that); the publication
+  gate only when the owner says so. An issue, an agent report or a review opens neither.
 - **Lab tooling is included, not authorized** (decision D-57). `lab-agent/` holds supporting
   development tooling for the Proxmox lab. It is verified offline by its own gate; one read-only
   API connectivity check passed under two narrow owner approvals that are used up; nothing else

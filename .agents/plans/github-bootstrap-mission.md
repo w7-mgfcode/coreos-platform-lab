@@ -3,8 +3,11 @@
 > **Agent:** `github-steward` (`.claude/agents/github-steward.md`). Read it in full first. It defines the taxonomy, templates, gates and operating rules this mission uses.
 > **Status:** revised on 2026-11-14 after the planning material was migrated; the "Current state" section was corrected on 2026-11-16. Stage 1 may run. **Stage 2 has not run**: no GitHub object named here exists yet, and it must not run before the publication gate opens.
 > **Decided by the owner (2026-11-14):** the repository is **public**; its name is `w7-mgfcode/coreos-platform-lab`; the git identity is repo-local.
+> *Note of 2026-11-16 (D-54, D-57): "Stage 2 has not run" above is the state of 2026-11-14/16 before the publication run. Stage 2 has since run in part, under the owner's go-ahead of 2026-11-16 (D-54), which is used up. Step 12 (the GitHub scaffold) was not run, and the board field this mission calls `Type` is `Work Type`. The body below is unchanged.*
 
 ## Current state
+
+*Note of 2026-11-16 (D-54, D-57): the list below is the state before the publication run. `main` now carries the bootstrap commit and later pull-request commits, and the repository has a remote; the GitHub tree and the board exist (numbers up to #41 at the time of this note; the tree on GitHub is the record); no `.github/` directory exists yet, because S0.2 (#10) is open. Nothing platform-related is built or tested. The list is left as written.*
 
 - The workspace is an initialised git repository on `main` with **no commits** and no remote. The repo-local identity is set.
 - `.gitignore` exists. It excludes `HANDOFF.md`, `.handoffs/`, `.claude/settings.local.json`, `.claude/worktrees/`, rendered `*.ign`, `secrets/`, `__pycache__/` and editor files; since 2026-11-14 the generic toolkit of decision D-45; and since 2026-11-16 the lab-administration tooling of decision D-49 and a local instruction file.
