@@ -1,0 +1,56 @@
+# Session handoffs and local agent state: never published
+HANDOFF.md
+.handoffs/
+.claude/settings.local.json
+.claude/worktrees/
+
+# Rendered Ignition is a build artifact and may embed secret material
+*.ign
+
+# Secret source files live outside git; only example files are tracked
+secrets/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python caches from the diagram generators
+__pycache__/
+*.pyc
+
+# Editors and operating systems
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Agent tooling that is not specific to this project: generic and third-party
+# skills stay available locally but are not published with the repository
+.claude/skills/analyzing-ai-repos/
+.claude/skills/git-history-manager/
+.claude/skills/issue-to-subtasks/
+.claude/skills/managing-agent-memory/
+.claude/skills/managing-llms-txt/
+.claude/skills/preparing-skill-briefs/
+.claude/skills/processing-coderabbit-reviews/
+.claude/skills/prompt-architect/
+.claude/skills/skill-creator/
+.claude/skills/writing-session-handoffs/
+.agents/skills/writing-session-handoffs/
+.claude/commands/prompts/ai-engineer-doc-architect-prompt.md
+
+# Proxmox lab-access tooling: excluded from the initial publication (decision D-49).
+# The files stay on disk. Adding them later needs a separate owner decision and pull request.
+/lab-agent/
+/.mcp.json
+/.claude/agents/pve-lab.md
+/.claude/hooks/pve-guard.py
+/.agents/plans/proxmox-admin-agent-plan.md
+/.agents/plans/proxmox-admin-agent-governance.diff
+
+# Local-only agent instructions for this checkout
+/CLAUDE.local.md

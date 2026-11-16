@@ -1,0 +1,112 @@
+# Preparation Workspace — CoreOS Platform Lab
+
+| Field | Value |
+|---|---|
+| Document ID | PREP-00 |
+| Title | Preparation Workspace Index |
+| Revision | r10 |
+| Status | ready-for-human-review |
+| Owner | Orchestrator session (author); approver: repository owner |
+| Last updated | 2026-11-16 |
+| Core-context revision used | r6 |
+| Dependencies | every document listed below |
+| Change summary | r1: index and baseline `docs-baseline-r1`. r2: baseline `docs-baseline-r2` after integration of the delegated sessions. r3: baseline `docs-baseline-r3` after two owner decisions (D-44, D-45). r4: baseline `docs-baseline-r4` after one owner decision (D-46). r5 (2026-11-16): baseline `docs-baseline-r5` after a records reconciliation the owner asked for; no new decision and no approval. r6 (2026-11-16): baseline `docs-baseline-r6` after one open question was added (OQ-35, the undecided part of D-46). r7 (2026-11-16): baseline `docs-baseline-r7` after one owner decision on the order of work (D-48). r8 (2026-11-16): baseline `docs-baseline-r8` after the documentation closeout DOC-1; no new decision and no approval. r8, extended on 2026-11-16 after an independent review (DOC-1b): the row of the steward's plan notes r6, the Purpose names all four source-register rows, and the r8 bullet lists the change to § 6. DOC-1c (2026-11-16): the row of the steward's plan follows r7. DOC-1d (2026-11-16): the row records the confirmation of r7 and its status. r9 (2026-11-16, decision D-49, task DOC-C): baseline `docs-baseline-r9` after one owner decision on the scope of the initial publication; no approval and no gate opened. The Purpose describes the lab-administration tooling set as excluded from the initial publication; the baseline table gains the `docs-baseline-r9` column; the row of the steward's plan follows r8. r9, corrected and its status set on 2026-11-16 after the independent review of the D-49 change (readiness-report § 10e): the statuses of the baseline table and of the plan's row are `ready-for-human-review`, and the sentence under "Why `ready-for-human-review`" points to the review. r10 (2026-11-16, decisions D-50 … D-53, task DOC-P): baseline `docs-baseline-r10` after the owner's answers to items 2 to 6 of the steward's plan § 21.8 were recorded in decision-log r8; no gate opened, no approval line, § 5 unchanged. The "Current label" paragraph, the baseline table (new `docs-baseline-r10` column and the current status of each row), a new bullet, the row of the steward's plan (r9) and the reading order follow r8. Status `in-review` while the independent review of this pass ran; corrected on 2026-11-16 on findings of the independent review of this pass; the status was set after that review ([readiness-report.md](readiness-report.md) § 10f) |
+
+## Purpose
+
+This directory holds the documentation baseline that was written **before anything is built**: what the project is, which decisions are fixed and which are only proposed, what is still unknown, a critical review of the plan, and how the work would proceed.
+
+**Everything here is a proposal until the owner approves it.** *Note of 2026-11-16 (D-50 … D-53).* "Everything" is qualified by the decision log: [decision-log.md](decision-log.md) § 2 records which rows the owner decided, and a row is a decision only where its Status cell says so. Decided on 2026-11-16 are D-50 … D-53 and the approval of D-20, D-21, D-22, D-23, D-28 and, for the GitHub work tree and subject to the D-48 exception, D-33 (§ 2, "Proposals of § 3 approved by the owner on 2026-11-16"); these are preparation decisions and **not** the publication go-ahead, which has not been given. Nothing in this directory is evidence that a requirement works. The lab VM does not exist yet; none of the platform files of the layout in D-05 (`butane/`, `compose.yaml`, `Caddyfile`, `firewall/`, `scripts/`, `tests/`, `docs/evidence/`) exists, and no platform test or evidence file has been written. The tree also holds two agent briefs at the repository root (`AGENTS.md`, `CLAUDE.md`), the Herdr rule and reference under `.claude/`, and a lab-administration tooling set that exists in the working tree only and is excluded from the initial publication (decision D-49; [source-register.md](source-register.md) SR-31). None of them is part of this baseline. They are listed in [source-register.md](source-register.md) SR-28 … SR-31.
+
+The Hungarian [project README](../../README.md) and [architecture](../architecture.md) are the public face of the project. This directory is the working record behind them, in English.
+
+## Document states
+
+Exactly four states are used:
+
+| State | Meaning |
+|---|---|
+| `draft` | Being written or revised |
+| `in-review` | Under review by a session other than its author |
+| `ready-for-human-review` | Passed its agent review; waiting for the owner |
+| `approved` | The owner recorded the approval in [decision-log.md](decision-log.md) § 5 |
+
+An agent can report that a document passed its review. Only the owner's recorded decision moves a document to `approved`.
+
+## Baseline
+
+**Current label: `docs-baseline-r10`** — set on 2026-11-16, after the owner's answers to items 2 to 6 of the steward's plan § 21.8 were recorded (D-50 … D-53, and the approval of D-20 … D-23, D-28 and, for the GitHub work tree and subject to the D-48 exception, D-33). It carries no approval line and opens no gate: both gates are closed, [decision-log.md](decision-log.md) § 5 is unchanged, and the owner's final go-ahead for publication has not been given.
+
+The baseline is the set of core documents every delegated session starts from. The label is bumped only when a core document changes. These are manual revisions, not commit hashes; see [source-register.md](source-register.md) "How revisions work here".
+
+| Core document | ID | `docs-baseline-r1` | `docs-baseline-r2` | `docs-baseline-r3` | `docs-baseline-r4` | `docs-baseline-r5` | `docs-baseline-r6` | `docs-baseline-r7` | `docs-baseline-r8` | `docs-baseline-r9` | `docs-baseline-r10` | Status |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| [README.md](README.md) | PREP-00 | r1 | r2 | r3 | r4 | r5 | r6 | r7 | r8 | r9 | r10 | ready-for-human-review |
+| [core-context.md](core-context.md) | PREP-01 | r1 | r2 | r2 | r2 | r3 | r3 | r3 | r4 | r5 | r6 | ready-for-human-review |
+| [source-register.md](source-register.md) | PREP-02 | r1 | r2 | r2 | r2 | r3 | r3 | r3 | r4 | r5 | r6 | ready-for-human-review |
+| [decision-log.md](decision-log.md) | PREP-03 | r1 | r2 | r3 | r4 | r5 | r5 | r6 | r6 | r7 | r8 | ready-for-human-review |
+| [open-questions.md](open-questions.md) | PREP-04 | r1 | r2 | r3 | r3 | r4 | r5 | r5 | r5 | r5 | r6 | ready-for-human-review |
+| [methodology-adaptation.md](methodology-adaptation.md) | PREP-05 | r1 | r1 | r1 | r1 | r1 | r1 | r1 | r2 | r2 | r2 | ready-for-human-review |
+
+- `docs-baseline-r1` is what the platform-writer, the security-writer, the plan-critic and the steward's prime started from.
+- `docs-baseline-r2` adds what they found: more proposals, more open questions, more assumptions, and the upstream line contents in the source register. No decided fact changed between the two. The steward's project plan was drafted from r2.
+- `docs-baseline-r3` records two owner decisions made after the readiness report: diagrams 01–04 regenerated (D-44) and the generic toolkit excluded from the repository (D-45). Two open questions closed; nothing else changed. The steward's plan r3 follows it.
+- `docs-baseline-r4` records one owner decision: the repository will be bilingual, English and Hungarian, where that is needed (D-46). Which files need both languages is not decided; until it is, every file stays in the language it is written in and nothing is translated.
+- `docs-baseline-r5` records a reconciliation of the records on 2026-11-16, with no new decision: the owner's answer of 2026-11-14 on the split of sub-issue S2.2 is now in the decision log (D-47), one completed correction that has no decision record is noted there, and references that trailed the current state carry dated notes. Details and what remains unverified are in [readiness-report.md](readiness-report.md) § 10b. The steward's plan r4 was written while `docs-baseline-r3` was current and has not been reviewed.
+- `docs-baseline-r6` adds one open question, later on 2026-11-16: OQ-35 asks which files need both languages and in what form, the part D-46 leaves undecided. It is a question, not a decision: no file was chosen and nothing was translated. Of the core documents, only [open-questions.md](open-questions.md) and this index changed; readiness-report § 10b records the pass.
+- `docs-baseline-r7` records one owner decision, later on 2026-11-16: the logs sub-issue S3.1 may be integrated and accepted after S2.2, without waiting for S2.3 (D-48). It is a decision about the order of future work. It approves no other proposal, and AC-04 stays required for the release. Of the core documents only [decision-log.md](decision-log.md) and this index changed; [implementation-plan.md](implementation-plan.md) r2 and the steward's plan r5 carry the decision, and readiness-report § 10c records it. [core-context.md](core-context.md) r3 was not edited: its summary of owner decisions ends at D-47.
+- `docs-baseline-r8` records the documentation closeout DOC-1 of 2026-11-16, with no new decision and no approval. Changed core documents: [core-context.md](core-context.md) r4 (its summary of owner decisions now follows decision-log r6, so it names D-48; a dated note on the tree; the language constraint points to OQ-35; the agent brief among the sources of truth), [source-register.md](source-register.md) r4 (SR-28 … SR-31 for files that had no row) and [methodology-adaptation.md](methodology-adaptation.md) r2 (a dated note on the root `CLAUDE.md`). [decision-log.md](decision-log.md) r6 and [open-questions.md](open-questions.md) r5 are unchanged. Other documents: [implementation-plan.md](implementation-plan.md) r3 and [plan-review.md](plan-review.md) r4 (dated notes), and [readiness-report.md](readiness-report.md) r5, whose § 10d records the pass, the scan that it supersedes, and what remains unverified.
+- `docs-baseline-r9` records one owner decision, on 2026-11-16: the lab-administration tooling in the working tree is excluded from the initial publication, and including it later needs a separate owner decision and a separate pull request (D-49). It is a decision about publication scope only. It opens neither gate, approves no proposal, records no authorization of the tooling and accepts no result of it. Changed core documents: [decision-log.md](decision-log.md) r7 (row D-49), [core-context.md](core-context.md) r5 (its summary of owner decisions follows decision-log r7, so it names D-49; a second dated note in § 5), [source-register.md](source-register.md) r5 (SR-31 carries a dated note; notes on SR-28 and SR-29) and this index. [open-questions.md](open-questions.md) r5 and [methodology-adaptation.md](methodology-adaptation.md) r2 are unchanged. Other documents: [readiness-report.md](readiness-report.md) r6, whose § 10e records the pass, and [github-project-plan.md](github-project-plan.md) r8. The documents changed by this step were reviewed independently on 2026-11-16 with no blocking finding ([readiness-report.md](readiness-report.md) § 10e) and carry the status `ready-for-human-review`.
+
+- `docs-baseline-r10` records the owner's answers of 2026-11-16 to items 2 to 6 of the steward's plan § 21.8, with the final go-ahead (item 7) **not given**: D-50 (the contents of the bootstrap commit), D-51 (four points of the issue tree), D-52 (commit identity, without its values) and D-53 (licence deferred), and the owner's approval of the proposals D-20, D-21, D-22, D-23 and D-28 and, for the GitHub work tree and subject to the D-48 exception, of D-33. It is a set of preparation decisions. It opens neither gate, adds no approval line to [decision-log.md](decision-log.md) § 5, approves no technical substance of D-41 or D-42, and leaves tree point 14 of the steward's plan § 15 (two added dependency edges), point 4 and D-35 undecided. Changed core documents: [decision-log.md](decision-log.md) r8 (rows D-50 … D-53, the subsection on approved proposals, Status cells in § 3), [core-context.md](core-context.md) r6 (its summary of owner decisions follows decision-log r8), [open-questions.md](open-questions.md) r6 (OQ-21 closed as CQ-09; dated notes on OQ-07, OQ-22 and OQ-35), [source-register.md](source-register.md) r6 (a dated note on SR-12, whose mission file's "Current state" was corrected) and this index. [methodology-adaptation.md](methodology-adaptation.md) r2 is unchanged. Other documents: [github-project-plan.md](github-project-plan.md) r9 (the steward's, following D-50 … D-53) and [readiness-report.md](readiness-report.md) r7, whose § 10f records the pass. [implementation-plan.md](implementation-plan.md) r3, [plan-review.md](plan-review.md) r4 and [delegation-manifest.md](delegation-manifest.md) r4 are unchanged. The documents changed by this step were reviewed independently on 2026-11-16 with no blocking finding in the documents ([readiness-report.md](readiness-report.md) § 10f); they carry the status `ready-for-human-review`. That is not an owner approval.
+
+Why `ready-for-human-review` and not `approved`: the core documents were reviewed by sessions other than their author — the plan-critic read all of them as inputs and challenged the plan review built on them — and by the orchestrator after integration. Only the owner can approve. The documents changed by the D-49 step were reviewed independently on 2026-11-16 with no blocking finding ([readiness-report.md](readiness-report.md) § 10e). The documents changed by the `docs-baseline-r10` step were reviewed independently on 2026-11-16 with no blocking finding in the documents ([readiness-report.md](readiness-report.md) § 10f); the status was set after that review.
+
+## Document index
+
+| Document | ID | Author | Purpose | Depends on |
+|---|---|---|---|---|
+| [core-context.md](core-context.md) | PREP-01 | orchestrator | The shared context: problem, outcomes, scope, verified state, constraints, terminology, sources of truth, assumptions | source register, decision log, open questions |
+| [source-register.md](source-register.md) | PREP-02 | orchestrator | Every source with its authority, revision or date, and limits | — |
+| [decision-log.md](decision-log.md) | PREP-03 | orchestrator | Decisions by the reviewer and the owner; proposals awaiting the owner; the owner's approvals | source register |
+| [open-questions.md](open-questions.md) | PREP-04 | orchestrator | What is unknown, why it matters, what it blocks, who can answer | source register, decision log |
+| [methodology-adaptation.md](methodology-adaptation.md) | PREP-05 | orchestrator | How the AI-native SDLC playbook is applied to a single-owner infrastructure lab | source register, core context |
+| [plan-review.md](plan-review.md) | PREP-06 | orchestrator; independently reviewed by plan-critic | Findings on the architecture, ranked recommendations, the re-ranking after the critic's review | core documents, architecture |
+| [implementation-plan.md](implementation-plan.md) | PREP-07 | orchestrator, integrating the platform-writer and security-writer drafts | Execution order, spike, scaffold, service order, and how each acceptance check is run and proven | plan review, both drafts |
+| [github-project-plan.md](github-project-plan.md) | PREP-08 | github-steward; r1 reviewed by the orchestrator; the review state of r3, r4 and r5 is in readiness-report § 10c; r6 was reviewed read-only on 2026-11-16; r7 carries the corrections, was confirmed by that reviewer with no blocking finding, and is `ready-for-human-review`; no owner approval (§ 10d); r8 (2026-11-16) follows D-49 and was `ready-for-human-review`, its review state being in readiness-report § 10e; r9 (2026-11-16) follows D-50 … D-53 and is `ready-for-human-review`, and its review state is in readiness-report § 10f | Milestones, umbrella, epics, sub-issues, labels, board; the Stage 2 bootstrap sequence | implementation plan, decision log |
+| [delegation-manifest.md](delegation-manifest.md) | PREP-09 | orchestrator | Each session's packet and its actual outcome | — |
+| [readiness-report.md](readiness-report.md) | PREP-10 | orchestrator | Readiness checks, the pre-publication scan, proposed rule changes, the verdict | all of the above |
+| [delegation/s1-platform-delivery.md](delegation/s1-platform-delivery.md) | S1 | platform-writer | Draft: host provisioning, Docker CE installation, Compose services, persistence, delivery sequencing | `docs-baseline-r1` |
+| [delegation/s2-security-verification.md](delegation/s2-security-verification.md) | S2 | security-writer | Draft: firewall layers, network isolation, TLS and CA, secrets, relay protection, verification design for AC-01 … AC-10 | `docs-baseline-r1` |
+| [delegation/s3-critic-review.md](delegation/s3-critic-review.md) | S3 | plan-critic | Independent review of the findings, the scores and both drafts | `docs-baseline-r1`, S1, S2, plan review |
+
+The current status and revision of the non-core documents are in each file's own metadata block and are summarised in [readiness-report.md](readiness-report.md): § 9 for the state at its r1, § 10b, § 10c, § 10d, § 10e and § 10f for the state on 2026-11-16.
+
+## Reading order
+
+For the owner, about twenty minutes:
+
+1. [readiness-report.md](readiness-report.md) — the verdict, the blockers, and what is asked of you at each gate
+2. [decision-log.md](decision-log.md) § 3 — the proposals that still need your yes, no or change (D-20 … D-23, D-28 and, for the GitHub work tree, D-33 were approved on 2026-11-16; § 2 records the limits)
+3. [open-questions.md](open-questions.md) § 1, "Owner answers needed"
+4. [plan-review.md](plan-review.md) — the findings and the ranked recommendations
+5. [implementation-plan.md](implementation-plan.md) and [github-project-plan.md](github-project-plan.md)
+
+For a session starting work: core-context → source-register → decision-log → open-questions, then its own packet in [delegation-manifest.md](delegation-manifest.md).
+
+## Ownership and change rules
+
+- The orchestrator session is the only writer of the core documents and of the integrated documents.
+- A delegated session writes only its assigned file. It proposes changes to the core context in its completion report; it does not edit the core documents.
+- No two sessions write the same file at the same time.
+- Every document carries a metadata block: document ID, title, revision, status, owner, last updated, core-context revision used, dependencies, change summary.
+- Tracked files use repository-relative paths. The source of the migrated material is called "the planning workspace".
+
+## The two gates
+
+| Gate | Holds back | Opens when |
+|---|---|---|
+| **Publication gate** | Creating the GitHub repository, the first commit and push, labels, milestones, issues, the board | The owner gives a go-ahead after seeing the pre-publication scan and the proposed issue tree |
+| **Implementation gate** | Any platform configuration (`butane/`, `compose.yaml`, `Caddyfile`, `firewall/`, `scripts/`, `tests/`) and any contact with the lab | The owner writes a dated "Approved by owner" line in [decision-log.md](decision-log.md) § 5, or asks for it to be recorded |
+
+Opening the first gate does not open the second.

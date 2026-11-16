@@ -1,0 +1,56 @@
+CoreOS Platform Lab - Compose és Swarm diagramok
+
+A PNG az előnézet; az SVG nagyítható; az .excalidraw szerkeszthető.
+Az .excalidraw fájlokat az Excalidraw szerkesztőben meg lehet nyitni.
+A tervek nincsenek telepítéssel validálva. Az ábrák összehasonlításhoz készültek.
+
+A / Compose: 1 Fedora CoreOS VM, az alkalmazás és az üzemeltetési stack ugyanott.
+B / Swarm: 3 Fedora CoreOS manager+worker VM, 2 webes task, közös uploads fájltár.
+A Swarm-változat tanulási/bővítési opció, nem teljes magas rendelkezésre állás.
+A node-1-en futó állapottartó szolgáltatások node-hoz kötöttek. Másik node-on
+újraindításukhoz az adatokat is elérhetővé kell tenni; a Swarm nem replikál volume-ot.
+A közös NFS további függőség; külön tárolón/NAS-on vagy külön storage VM-en értendő.
+A 3 node ugyanazon a fizikai Proxmox gépen nem jelent fizikai hibatűrést.
+A routing mesh önmagában nem biztosít redundáns kliensoldali belépési címet.
+A két WordPress taskhoz azonos verziójú image/plugin/theme és közös uploads kell;
+gördülő frissítés csak az adatbázis-séma és alkalmazásverzió kompatibilitásával.
+SELinux és minimális konténerjogosultságok mindkét változatban érvényesek.
+A Checkmk mindkét változatban külső rendszer; agent-integráció CoreOS-on külön próba.
+Az egyszerűség kedvéért a diagram a Grafana HTTPS útját nem rajzolja külön.
+A mentés, secrets és frissítési stratégia tervezett üzemeltetési kiegészítések.
+
+Eldöntve (2026-11-13): az FCOS beépített Moby/Docker Engine nem fogadható el
+Docker CE-ként. Docker CE kell, egy VM-en, Docker Compose-zal. A Swarm-változat
+elvetett alternatíva; ábrái (02, 04, 08) csak háttéranyagok.
+A 01-04 ábrák 2026-11-14-én a döntések szerinti szöveggel újra lettek generálva
+(választott / elvetett változat, Docker CE, kötelező hosttűzfal, mai fájlnevek).
+A mértékadó szöveg továbbra is a docs/architecture.md.
+
+Fájlok (minden ábra három formátumban: .excalidraw, .svg, .png):
+01-compose-dark         A változat, részletes nézet            generate.py
+02-swarm-dark           B változat, részletes nézet (elvetve)  generate.py
+03-compose-argue-dark   A változat, technikai ábra             generate_argue.py
+04-swarm-argue-dark     B változat, technikai ábra (elvetve)   generate_argue.py
+07-arch-a-compose-dark  A változat, áttekintő ábra             generate_arch.py
+08-arch-b-swarm-dark    B változat, áttekintő ábra (elvetve)   generate_arch.py
+09-tuzfal-dark          A tűzfal három rétege                  generate_firewall.py
+A generate_arch.py és a generate_firewall.py a generate_argue.py Diagram
+segédosztályát használja.
+
+Hivatalos dokumentáció:
+https://github.com/coreos/fedora-coreos-docs/blob/main/modules/ROOT/pages/running-containers.adoc
+https://docs.docker.com/engine/swarm/admin_guide/
+https://docs.docker.com/engine/swarm/services/
+https://docs.docker.com/engine/swarm/ingress/
+https://docs.docker.com/engine/network/firewall-iptables/
+https://docs.docker.com/compose/how-tos/use-secrets/
+https://caddyserver.com/docs/automatic-https
+https://docs.checkmk.com/latest/en/monitoring_docker.html
+https://grafana.com/docs/grafana-cloud/send-data/alloy/tutorials/send-logs-to-loki/
+
+Készítés: excalidraw-architect és excalidraw-diagram-design skillek;
+helyben telepített excalidraw-architect-mcp 2.0.0 layout/render motor, dark téma.
+A generátorok a helyi engine-t az EXCALIDRAW_ENGINE_SRC környezeti változóból
+veszik (alapérték: ~/.local/share/excalidraw-architect-mcp/src); a generate.py
+a függőségcache-t az EXCALIDRAW_UV_CACHE változóból (alapérték:
+~/.cache/uv/archive-v0).
