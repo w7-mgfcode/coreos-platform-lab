@@ -1,6 +1,6 @@
 # Test Requirements
 
-> Vision principle: **"Meet the brief, prove it with evidence."** Every change passes the static gates. Every requirement is closed by an acceptance check that ran on the lab, and every block is shown by a negative test.
+> Vision principle: **"Meet the brief, prove it with evidence."** Every change has valid evidence for the applicable gates, using new runs or explicitly retained results under the change-based validation rule below. Every requirement is closed by an acceptance check that ran on the lab, and every block is shown by a negative test.
 
 ## What "tests" mean here
 
@@ -27,6 +27,60 @@ tests/run-acceptance.sh
 A tool that is not installed locally may run from its official container image, pinned to a version. The scaffold change fixes the exact invocations (for example in one `scripts/validate.sh`); once it exists, that script is the gate and this block is updated to match it.
 
 **Do not commit on red.** The acceptance layer needs the lab and never runs in CI.
+
+## Change-based validation and reuse
+
+Choose checks by affected behavior and inputs, not by the fact that a file or a
+whole-tree snapshot hash changed. This section governs rerun selection; it does
+not waive a required check, an owner gate, or the evidence rules below.
+
+Before a costly run, record in the existing task record: the changed inputs,
+affected checks, reusable results and the concrete reason for any full rerun.
+A short entry is enough; do not create another approval process or reporting layer.
+
+| Change | Required validation | Results that may be retained |
+|---|---|---|
+| Prose, diagrams, review/status records | Relevant links, anchors, tables, revisions, publication hygiene and claim accuracy | Code and runtime tests whose inputs are unchanged |
+| Policy, permissions instructions or operational runbook | Targeted consistency and authority review; inspect commands against current code | Unaffected runtime results; this review grants no live execution authority |
+| Comments or formatting in code/configuration | Inspect the actual delta. Configuration still passes the static gates ("What doesn't need tests"); run the affected tests as well if directives, generation or behavior could change | Unaffected tests after confirming the delta is non-executable |
+| Localized executable change or bug fix | Regression test, affected unit/integration tests and relevant static checks | Checks outside the demonstrated impact boundary |
+| Fixture, path, file mode, symlink, package or dependency change | Tests consuming those inputs and affected clean-export/import/entry-point checks | Unaffected checks; a path move is not automatically documentation-only |
+| Shared transport, authorization, isolation, runner or cross-component behavior | All affected boundary and negative tests; full relevant suite when impact spans the suite or cannot be bounded | Only evidence with an established unaffected scope |
+
+Classify by how content is used, not by extension: Markdown examples, comments,
+fixtures and documentation may be parsed or executed. If the impact is unclear,
+inspect the relevant consumers first. If it remains unclear, broaden the checks
+and state why. Never shrink a test to create an unaffected scope.
+
+A result is reusable only when it passed and its relevant source, tests, fixtures,
+configuration, dependencies, invocation and execution environment remain
+applicable. Compare actual content and relevant modes/symlinks; include needed
+untracked inputs. A change to the input inventory or to a test's file-discovery
+scope may invalidate it. A shared live target can change without a Git diff:
+reuse of offline results does not establish current lab state.
+
+The final record distinguishes:
+- RUN: check, tested snapshot/inputs, environment, exit status and result;
+- RETAINED: earlier passing result and the inspected final delta explaining why
+  the check is unaffected;
+- NOT RUN, FAILED or INVALIDATED: stated explicitly; never presented as PASS.
+
+The final publication snapshot need not equal an earlier test snapshot byte for
+byte. It needs complete coverage: retained results for unchanged inputs plus
+appropriate checks/review of every later delta. Do not claim that a full suite
+ran on the final tree when its result was retained from an earlier one.
+
+Run full suites for a concrete integration, packaging, environment or coverage
+reason, not merely to refresh a timestamp or whole-tree hash. A clean export is
+required when validating that a publication does not depend on local-only files;
+repeating it after prose-only edits requires an identified affected check.
+Where supporting tooling has both an offline gate and a network-less suite, the
+two provide distinct evidence even when they run the same unit tests. Assess reuse for each separately; neither substitutes for the other's
+unique checks.
+
+Before a release, rerun acceptance checks invalidated by relevant changes, as
+required below. Preserve AC-05/AC-07 sources and positive controls. A required
+check that is blocked by missing authorization stays blocked, not waived.
 
 ## Required coverage — the acceptance checks
 
