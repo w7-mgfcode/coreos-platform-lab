@@ -205,6 +205,35 @@ their consent. Do not resubmit an unchanged failing action indefinitely.
 - Reuse suitable independent reviewers within the mission. Start a fresh session
   when context size or prior authorship makes reuse inappropriate.
 
+## Validation cost and closing a pass
+
+Follow [change-based validation](test-requirements.md#change-based-validation-and-reuse).
+The lead chooses check scope from the actual delta and dependencies. Workers
+report changes; they do not independently launch duplicate full suites. Share
+accepted results and reuse an in-progress run when it covers the needed inputs.
+Parallelize checks only when their snapshots and runtime resources are isolated.
+
+Before final expensive runs, finish the intended executable changes and freeze
+their inputs. Record the commands, start time, log locations and expected duration
+from recent evidence when available. If a run exceeds that estimate materially,
+inspect progress and timeout evidence rather than polling blindly or launching
+a duplicate. Do not kill a healthy run merely because the owner interrupted a wait.
+
+Final result/status text is normally written after the run. Verify that text and
+its links/revisions without rerunning unaffected code tests. A later functional
+edit invalidates only the affected evidence; determine its scope explicitly.
+
+Do not reopen a completed pass for nonblocking cosmetic findings. Record them in
+an existing issue/task note if useful. Correct misleading safety, authorization
+or acceptance claims before publication, with scoped review. A blocker needs a
+bounded correction and affected checks, not an automatic full redesign/review.
+
+The consolidating reviewer of "Independent review" works from prior reviews and
+final scoped rechecks. Consolidation is not another complete review or test run.
+When applicable evidence and review are complete and the owner gates permit it,
+proceed to the authorized commit/PR/handoff; do not add a fresh validation cycle
+solely to make all timestamps or snapshot hashes identical.
+
 ## Acceptance, resume and cleanup
 
 Workers return a terminal report with task ID, cwd/baseline, changed paths and
